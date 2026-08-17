@@ -1,0 +1,729 @@
+<div id="salinha-keise" lang="pt-BR">
+<style>
+#salinha-keise{
+  --panel:#fffaf4;
+  --text:#302925;
+  --border:#d9c9b7;
+  --accent:#aa604f;
+  --access-bg:rgba(35,28,22,.96);
+  font-family:Arial,Helvetica,sans-serif;
+  width:100%;
+  max-width:1600px;
+  margin:0 auto;
+  color:var(--text);
+}
+#salinha-keise *{box-sizing:border-box}
+
+#salinha-keise .sk-scene{
+  position:relative;
+  width:100%;
+  aspect-ratio:3/2;
+  overflow:hidden;
+  border-radius:16px;
+  background:#2b2119;
+}
+#salinha-keise .sk-scene-img{
+  position:absolute;
+  inset:0;
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  user-select:none;
+  -webkit-user-drag:none;
+}
+
+/* Hotspots transparentes sobre os pontos luminosos JA existentes na imagem aprovada. */
+#salinha-keise .sk-hotspot{
+  position:absolute;
+  z-index:20;
+  transform:translate(-50%,-50%);
+  width:clamp(46px,4.2vw,68px);
+  height:clamp(46px,4.2vw,68px);
+  padding:0;
+  margin:0;
+  border:0;
+  border-radius:50%;
+  background:transparent;
+  cursor:pointer;
+  pointer-events:auto;
+  touch-action:manipulation;
+}
+#salinha-keise .sk-hotspot::after{
+  content:"";
+  position:absolute;
+  inset:9%;
+  border:2px solid transparent;
+  border-radius:50%;
+  pointer-events:none;
+}
+#salinha-keise .sk-hotspot:hover::after,
+#salinha-keise .sk-hotspot:focus-visible::after,
+#salinha-keise .sk-hotspot.sk-selected::after{
+  border-color:#fff;
+  box-shadow:0 0 0 4px rgba(216,169,94,.72),0 0 20px rgba(255,220,125,.95);
+}
+#salinha-keise .sk-hotspot:focus-visible{outline:none}
+
+/* Coordenadas da NOVA imagem aprovada 1536 x 1024. */
+#salinha-keise [data-key="cert1"]{left:38.67%;top:8.30%}
+#salinha-keise [data-key="cert2"]{left:38.67%;top:26.86%}
+#salinha-keise [data-key="quadro"]{left:74.15%;top:10.16%}
+#salinha-keise [data-key="gato"]{left:19.99%;top:45.12%}
+#salinha-keise [data-key="notebook"]{left:11.46%;top:70.70%}
+#salinha-keise [data-key="caneca"]{left:32.42%;top:70.70%}
+#salinha-keise [data-key="planner"]{left:49.74%;top:76.07%}
+#salinha-keise [data-key="canetas"]{left:78.78%;top:62.30%}
+#salinha-keise [data-key="envelope"]{left:72.92%;top:76.07%}
+#salinha-keise [data-key="planta"]{left:94.53%;top:78.13%}
+
+/* Apenas os dois recursos mantidos: ouvir pagina e navegacao por teclado. */
+#salinha-keise .sk-access-bar{
+  position:absolute;
+  z-index:30;
+  right:2.2%;
+  bottom:2.2%;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:7px 10px;
+  border:1px solid rgba(255,255,255,.24);
+  border-radius:999px;
+  background:var(--access-bg);
+  box-shadow:0 4px 14px rgba(0,0,0,.18);
+}
+#salinha-keise .sk-access-btn{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  border:0;
+  background:transparent;
+  color:#fff;
+  padding:8px 11px;
+  border-radius:999px;
+  cursor:pointer;
+  font-size:clamp(12px,1.05vw,16px);
+  line-height:1.1;
+  white-space:nowrap;
+}
+#salinha-keise .sk-access-btn:hover,
+#salinha-keise .sk-access-btn:focus-visible,
+#salinha-keise .sk-access-btn[aria-pressed="true"]{
+  background:rgba(216,169,94,.22);
+  outline:none;
+  box-shadow:inset 0 0 0 1px rgba(216,169,94,.72);
+}
+#salinha-keise .sk-access-icon{
+  font-size:1.2em;
+  line-height:1;
+}
+
+/* Modal */
+#salinha-keise .sk-modal{
+  position:fixed;
+  inset:0;
+  z-index:999999;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(25,18,14,.72);
+}
+#salinha-keise .sk-modal.sk-open{display:flex}
+#salinha-keise .sk-dialog{
+  position:relative;
+  width:min(700px,94vw);
+  max-height:86vh;
+  overflow:auto;
+  padding:clamp(22px,4vw,36px);
+  border:1px solid var(--border);
+  border-radius:20px;
+  background:var(--panel);
+  box-shadow:0 24px 70px rgba(0,0,0,.38);
+}
+#salinha-keise .sk-dialog h2{
+  margin:0 48px 14px 0;
+  font:700 clamp(27px,4vw,42px)/1.12 Georgia,serif;
+}
+#salinha-keise .sk-dialog p{
+  margin:0 0 14px;
+  font-size:clamp(16px,1.5vw,19px);
+  line-height:1.65;
+}
+#salinha-keise .sk-close{
+  position:absolute;
+  top:12px;
+  right:12px;
+  width:42px;
+  height:42px;
+  border:1px solid var(--border);
+  border-radius:50%;
+  background:#efe4d7;
+  color:#302925;
+  font-size:28px;
+  cursor:pointer;
+}
+#salinha-keise .sk-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:9px;
+  margin-top:18px;
+}
+#salinha-keise .sk-actions button{
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:10px 14px;
+  background:#fff;
+  color:#302925;
+  cursor:pointer;
+  font-size:15px;
+}
+#salinha-keise .sk-actions .sk-primary{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#fff;
+}
+#salinha-keise .sk-status{
+  margin-top:14px;
+  font-size:13px;
+  color:#665d56;
+}
+#salinha-keise .sk-close:focus-visible,
+#salinha-keise .sk-actions button:focus-visible{
+  outline:3px solid #174ea6;
+  outline-offset:3px;
+}
+
+@media(max-width:700px){
+  #salinha-keise .sk-scene{border-radius:8px}
+  #salinha-keise .sk-hotspot{width:50px;height:50px}
+  #salinha-keise .sk-access-bar{
+    right:1.5%;
+    bottom:1.5%;
+    gap:3px;
+    padding:4px 6px;
+  }
+  #salinha-keise .sk-access-btn{
+    font-size:10px;
+    padding:5px 6px;
+  }
+}
+
+#salinha-keise .sk-linkedin{
+  display:inline-block;
+  margin-top:8px;
+  color:#6b625c;
+  font-size:14px;
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+#salinha-keise .sk-linkedin:hover,
+#salinha-keise .sk-linkedin:focus-visible{
+  color:#302925;
+  outline:2px solid #174ea6;
+  outline-offset:3px;
+  border-radius:4px;
+}
+
+</style>
+
+<div class="sk-scene" id="sk-scene"
+     aria-label="Salinha interativa da mediadora pedagogica. Use Tab para navegar ou ative a navegacao por teclado para usar as setas.">
+  <img class="sk-scene-img"
+       src="scene.png"
+       alt="Salinha acolhedora com mediadora pedagogica sentada a mesa. Ha certificados, quadro, gato, notebook, caneca, planner, porta-canetas, envelope e planta. Os circulos luminosos da propria imagem indicam os pontos interativos.">
+
+  <button class="sk-hotspot" type="button" data-key="cert1"
+          aria-label="Pos-graduacao em Tutoria em Educacao a Distancia"></button>
+  <button class="sk-hotspot" type="button" data-key="cert2"
+          aria-label="Aperfeicoamento em Design Educacional"></button>
+  <button class="sk-hotspot" type="button" data-key="quadro"
+          aria-label="Quadro Acolher"></button>
+  <button class="sk-hotspot" type="button" data-key="gato"
+          aria-label="Gatinho, descoberta especial"></button>
+  <button class="sk-hotspot" type="button" data-key="notebook"
+          aria-label="Notebook, quem sou eu"></button>
+  <button class="sk-hotspot" type="button" data-key="caneca"
+          aria-label="Caneca, uma mensagem para voce"></button>
+  <button class="sk-hotspot" type="button" data-key="planner"
+          aria-label="Planner, nossa jornada"></button>
+  <button class="sk-hotspot" type="button" data-key="canetas"
+          aria-label="Porta-canetas, organizacao e apoio"></button>
+  <button class="sk-hotspot" type="button" data-key="envelope"
+          aria-label="Envelope, fale comigo"></button>
+  <button class="sk-hotspot" type="button" data-key="planta"
+          aria-label="Planta, aprendizagem em crescimento"></button>
+
+  <div class="sk-access-bar" aria-label="Recursos opcionais de acessibilidade">
+    <button class="sk-access-btn" id="sk-read-page" type="button">
+      <span class="sk-access-icon" aria-hidden="true">&#128266;</span>
+      <span>Ouvir p&aacute;gina</span>
+    </button>
+
+    <button class="sk-access-btn" id="sk-keyboard-mode" type="button" aria-pressed="false">
+      <span class="sk-access-icon" aria-hidden="true">&#9000;</span>
+      <span>Navega&ccedil;&atilde;o por teclado</span>
+    </button>
+  </div>
+</div>
+
+<div class="sk-modal" id="sk-modal" role="dialog" aria-modal="true" aria-labelledby="sk-title">
+  <div class="sk-dialog">
+    <button class="sk-close" id="sk-close" type="button" aria-label="Fechar">&times;</button>
+    <h2 id="sk-title"></h2>
+    <div id="sk-body"></div>
+
+    <div class="sk-actions">
+      <button class="sk-primary" id="sk-listen" type="button">
+        &#128266; Ouvir
+      </button>
+      <button id="sk-pause" type="button">
+        &#10074;&#10074; Pausar
+      </button>
+    </div>
+
+    <div class="sk-status" id="sk-status" aria-live="polite">
+      O &aacute;udio &eacute; opcional.
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var root=document.getElementById("salinha-keise");
+  if(!root)return;
+
+  var items={
+    cert1:{
+      title:"Certificados / forma\u00e7\u00e3o",
+      html:"<p><strong>P&oacute;s-gradua&ccedil;&atilde;o em Tutoria em Educa&ccedil;&atilde;o a Dist&acirc;ncia &mdash; UFMS.</strong></p>",
+      speech:[
+        "Certificados e forma\u00e7\u00e3o.",
+        "P\u00f3s-gradua\u00e7\u00e3o em Tutoria em Educa\u00e7\u00e3o a Dist\u00e2ncia, pela U F M S."
+      ],
+      description:[
+        "Audiodescri\u00e7\u00e3o.",
+        "Na parede, \u00e0 esquerda da mediadora, h\u00e1 dois certificados emoldurados em madeira.",
+        "O ponto selecionado est\u00e1 no certificado superior.",
+        "Ele representa a p\u00f3s-gradua\u00e7\u00e3o em Tutoria em Educa\u00e7\u00e3o a Dist\u00e2ncia."
+      ]
+    },
+    cert2:{
+      title:"Certificados / forma\u00e7\u00e3o",
+      html:"<p><strong>Aperfei&ccedil;oamento em Design Educacional &mdash; IFES.</strong></p>",
+      speech:[
+        "Certificados e forma\u00e7\u00e3o.",
+        "Aperfei\u00e7oamento em Design Educacional, pelo IFES."
+      ],
+      description:[
+        "Audiodescri\u00e7\u00e3o.",
+        "Na parede, \u00e0 esquerda da mediadora, h\u00e1 dois certificados emoldurados em madeira.",
+        "O ponto selecionado est\u00e1 no certificado inferior.",
+        "Ele representa o aperfei\u00e7oamento em Design Educacional."
+      ]
+    },
+    quadro:{
+      title:"Como posso te ajudar",
+      html:"<p>Estou aqui para ajudar voc&ecirc; a compreender orienta&ccedil;&otilde;es, esclarecer d&uacute;vidas, acompanhar atividades e encontrar caminhos quando alguma etapa parecer confusa.</p><p>Quando a d&uacute;vida estiver relacionada &agrave; minha atua&ccedil;&atilde;o, vou te apoiar diretamente. Quando se tratar de uma demanda de outro setor, vou indicar ou encaminhar voc&ecirc; ao respons&aacute;vel adequado.</p><p>A ideia &eacute; que voc&ecirc; tenha mais seguran&ccedil;a e autonomia para seguir seu percurso, sabendo onde buscar apoio sempre que precisar.</p>",
+      speech:[
+        "Como posso te ajudar.",
+        "Estou aqui para ajudar voc\u00ea a compreender orienta\u00e7\u00f5es, esclarecer d\u00favidas, acompanhar atividades e encontrar caminhos quando alguma etapa parecer confusa.",
+        "Quando a d\u00favida estiver relacionada \u00e0 minha atua\u00e7\u00e3o, vou te apoiar diretamente.",
+        "Quando se tratar de uma demanda de outro setor, vou indicar ou encaminhar voc\u00ea ao respons\u00e1vel adequado.",
+        "A ideia \u00e9 que voc\u00ea tenha mais seguran\u00e7a e autonomia para seguir seu percurso, sabendo onde buscar apoio sempre que precisar."
+      ],
+      description:[
+        "Audiodescri\u00e7\u00e3o.",
+        "Atr\u00e1s da mediadora, no lado direito da parede, h\u00e1 um quadro escuro.",
+        "A palavra Acolher aparece em destaque.",
+        "Abaixo aparecem os verbos orientar, acompanhar e incentivar."
+      ]
+    },
+    gato:{
+      title:"Uma pequena descoberta",
+      html:"<p>Achou o gatinho? Ent&atilde;o voc&ecirc; descobriu uma curiosidade sobre mim: <strong>eu sou apaixonada por gatos!</strong></p>",
+      speech:[
+        "Uma pequena descoberta.",
+        "Achou o gatinho?",
+        "Ent\u00e3o voc\u00ea descobriu uma curiosidade sobre mim.",
+        "Eu sou apaixonada por gatos!"
+      ],
+      description:[
+        "Audiodescri\u00e7\u00e3o.",
+        "No lado esquerdo da salinha, perto da janela, h\u00e1 um gato deitado sobre uma almofada clara.",
+        "Ele aparece descansando ao lado da \u00e1rea de estudos."
+      ]
+    },
+    notebook:{
+      title:"Quem sou eu",
+      html:"<p>Ol&aacute;! Eu sou a Keise, sua mediadora pedag&oacute;gica. Sou natural do Tocantins e gosto muito de estudar, aprender coisas novas, assistir a document&aacute;rios e estar em contato com a natureza.</p><p>Tamb&eacute;m sou apaixonada por <strong>tecnologias educacionais</strong> e por pensar em formas de tornar a aprendizagem mais <strong>humana, pr&aacute;tica, acess&iacute;vel e significativa</strong>. Gosto de pesquisar, experimentar novos recursos e transformar ideias em experi&ecirc;ncias que realmente fa&ccedil;am sentido para quem est&aacute; aprendendo.</p><p>Tenho um olhar curioso para o mundo e gosto de observar, descobrir e compreender novas possibilidades. Talvez por isso a educa&ccedil;&atilde;o e a tecnologia fa&ccedil;am tanto sentido para mim quando caminham juntas, com prop&oacute;sito e sensibilidade.</p><p>Ao longo da disciplina, estarei aqui para orientar, acompanhar e apoiar sua trajet&oacute;ria.</p><a class=\"sk-linkedin\" href=\"https://www.linkedin.com/in/keisepamelamorais\" target=\"_blank\" rel=\"noopener noreferrer\" aria-label=\"Abrir LinkedIn de Keise Pamela Morais em nova aba\">LinkedIn &#8599;</a>",
+      speech:[
+        "Quem sou eu.",
+        "Ol\u00e1! Eu sou a Keise, sua mediadora pedag\u00f3gica.",
+        "Sou natural do Tocantins e gosto muito de estudar, aprender coisas novas, assistir a document\u00e1rios e estar em contato com a natureza.",
+        "Tamb\u00e9m sou apaixonada por tecnologias educacionais e por pensar em formas de tornar a aprendizagem mais humana, pr\u00e1tica, acess\u00edvel e significativa.",
+        "Gosto de pesquisar, experimentar novos recursos e transformar ideias em experi\u00eancias que realmente fa\u00e7am sentido para quem est\u00e1 aprendendo.",
+        "Tenho um olhar curioso para o mundo e gosto de observar, descobrir e compreender novas possibilidades.",
+        "Talvez por isso a educa\u00e7\u00e3o e a tecnologia fa\u00e7am tanto sentido para mim quando caminham juntas, com prop\u00f3sito e sensibilidade.",
+        "Ao longo da disciplina, estarei aqui para orientar, acompanhar e apoiar sua trajet\u00f3ria."
+      ],
+      description:[
+        "Audiodescri\u00e7\u00e3o.",
+        "No canto inferior esquerdo da mesa h\u00e1 um notebook aberto.",
+        "Ele est\u00e1 voltado em diagonal para o centro da salinha."
+      ]
+    },
+    caneca:{
+      title:"Uma mensagem para voc\u00ea",
+      html:"<p>Aprender tamb&eacute;m &eacute; saber respeitar o pr&oacute;prio ritmo. H&aacute; momentos de foco, de pausa, de d&uacute;vida e de descoberta &mdash; e todos eles fazem parte do processo.</p><p>Siga no seu tempo, com curiosidade e prop&oacute;sito. Cada pequeno avan&ccedil;o tamb&eacute;m conta.</p>",
+      speech:[
+        "Uma mensagem para voc\u00ea.",
+        "Aprender tamb\u00e9m \u00e9 saber respeitar o pr\u00f3prio ritmo.",
+        "H\u00e1 momentos de foco, de pausa, de d\u00favida e de descoberta.",
+        "E todos eles fazem parte do processo.",
+        "Siga no seu tempo, com curiosidade e prop\u00f3sito.",
+        "Cada pequeno avan\u00e7o tamb\u00e9m conta."
+      ],
+      description:[
+        "Audiodescri\u00e7\u00e3o.",
+        "Sobre a mesa, \u00e0 esquerda do planner, h\u00e1 uma caneca clara com caf\u00e9.",
+        "Na caneca aparecem as palavras Caf\u00e9, Foco e Prop\u00f3sito."
+      ]
+    },
+    planner:{
+      title:"Nossa jornada",
+      html:"<p>Ao longo da disciplina, vamos construir esse caminho juntos, etapa por etapa. Haver&aacute; momentos de aprendizado, participa&ccedil;&atilde;o, d&uacute;vidas, descobertas e troca.</p><p>Meu papel &eacute; estar por perto durante esse percurso, ajudando voc&ecirc; a compreender cada etapa e seguir com mais seguran&ccedil;a.</p><p>A ideia &eacute; que essa jornada fa&ccedil;a sentido para voc&ecirc; e que, ao final, n&atilde;o fique apenas o conte&uacute;do estudado, mas tamb&eacute;m a experi&ecirc;ncia vivida ao longo do caminho.</p>",
+      speech:[
+        "Nossa jornada.",
+        "Ao longo da disciplina, vamos construir esse caminho juntos, etapa por etapa.",
+        "Haver\u00e1 momentos de aprendizado, participa\u00e7\u00e3o, d\u00favidas, descobertas e troca.",
+        "Meu papel \u00e9 estar por perto durante esse percurso, ajudando voc\u00ea a compreender cada etapa e seguir com mais seguran\u00e7a.",
+        "A ideia \u00e9 que essa jornada fa\u00e7a sentido para voc\u00ea.",
+        "E que, ao final, n\u00e3o fique apenas o conte\u00fado estudado, mas tamb\u00e9m a experi\u00eancia vivida ao longo do caminho."
+      ],
+      description:[
+        "Audiodescri\u00e7\u00e3o.",
+        "No centro da mesa h\u00e1 um planner aberto.",
+        "Na p\u00e1gina esquerda aparece uma lista de etapas da jornada.",
+        "Na p\u00e1gina direita h\u00e1 uma mensagem sobre experi\u00eancias de aprendizagem significativas."
+      ]
+    },
+    canetas:{
+      title:"Organiza\u00e7\u00e3o e apoio",
+      html:"<p>Organizar a rotina pode deixar a caminhada mais leve. Ter clareza sobre atividades, orienta&ccedil;&otilde;es e prazos ajuda voc&ecirc; a acompanhar a disciplina com mais tranquilidade e seguran&ccedil;a.</p><p>E, quando precisar, lembre-se: voc&ecirc; n&atilde;o precisa dar conta de tudo sozinho(a). Estou aqui para ajudar a organizar o caminho junto com voc&ecirc;.</p>",
+      speech:[
+        "Organiza\u00e7\u00e3o e apoio.",
+        "Organizar a rotina pode deixar a caminhada mais leve.",
+        "Ter clareza sobre atividades, orienta\u00e7\u00f5es e prazos ajuda voc\u00ea a acompanhar a disciplina com mais tranquilidade e seguran\u00e7a.",
+        "E, quando precisar, lembre-se.",
+        "Voc\u00ea n\u00e3o precisa dar conta de tudo sozinho ou sozinha.",
+        "Estou aqui para ajudar a organizar o caminho junto com voc\u00ea."
+      ],
+      description:[
+        "Audiodescri\u00e7\u00e3o.",
+        "\u00c0 direita da mesa h\u00e1 um porta-canetas claro.",
+        "L\u00e1pis e canetas aparecem organizados em posi\u00e7\u00e3o vertical."
+      ]
+    },
+    envelope:{
+      title:"Fale comigo",
+      html:"<p>Sempre que precisar, utilize o canal oficial de mensagens ou o <strong>Apoio Acad&ecirc;mico</strong> dispon&iacute;vel na disciplina.</p><p>E aproveite bastante o <strong>F&oacute;rum de Intera&ccedil;&atilde;o</strong> para participar das discuss&otilde;es, compartilhar ideias, experi&ecirc;ncias e percep&ccedil;&otilde;es, conhecer diferentes pontos de vista e aprender tamb&eacute;m com as contribui&ccedil;&otilde;es dos colegas.</p><p>Esse espa&ccedil;o faz parte da nossa troca ao longo da disciplina e pode tornar a aprendizagem mais participativa e significativa.</p>",
+      speech:[
+        "Fale comigo.",
+        "Sempre que precisar, utilize o canal oficial de mensagens ou o Apoio Acad\u00eamico dispon\u00edvel na disciplina.",
+        "E aproveite bastante o F\u00f3rum de Intera\u00e7\u00e3o para participar das discuss\u00f5es, compartilhar ideias, experi\u00eancias e percep\u00e7\u00f5es, conhecer diferentes pontos de vista e aprender tamb\u00e9m com as contribui\u00e7\u00f5es dos colegas.",
+        "Esse espa\u00e7o faz parte da nossa troca ao longo da disciplina e pode tornar a aprendizagem mais participativa e significativa."
+      ],
+      description:[
+        "Audiodescri\u00e7\u00e3o.",
+        "Sobre a mesa, no lado direito, h\u00e1 um envelope fechado em papel kraft.",
+        "Na parte da frente h\u00e1 um pequeno cora\u00e7\u00e3o."
+      ]
+    },
+    planta:{
+      title:"Aprendizagem em crescimento",
+      html:"<p>Aprender &eacute; um processo que acontece aos poucos, no seu tempo. Cada participa&ccedil;&atilde;o, cada d&uacute;vida e cada nova descoberta fazem parte desse caminho.</p><p>O mais importante &eacute; continuar avan&ccedil;ando, mesmo que em pequenos passos, porque toda aprendizagem cresce quando existe curiosidade, presen&ccedil;a e vontade de seguir.</p>",
+      speech:[
+        "Aprendizagem em crescimento.",
+        "Aprender \u00e9 um processo que acontece aos poucos, no seu tempo.",
+        "Cada participa\u00e7\u00e3o, cada d\u00favida e cada nova descoberta fazem parte desse caminho.",
+        "O mais importante \u00e9 continuar avan\u00e7ando, mesmo que em pequenos passos.",
+        "Porque toda aprendizagem cresce quando existe curiosidade, presen\u00e7a e vontade de seguir."
+      ],
+      description:[
+        "Audiodescri\u00e7\u00e3o.",
+        "No canto inferior direito da cena h\u00e1 uma planta verde e volumosa em um vaso claro.",
+        "Ela acrescenta um elemento natural ao ambiente de estudos."
+      ]
+    }
+  };
+
+  var hotspots=Array.prototype.slice.call(root.querySelectorAll(".sk-hotspot"));
+  var current=null;
+  var lastFocus=null;
+  var selectedVoice=null;
+  var speechRun=0;
+  var keyboardMode=false;
+
+  function pickVoice(){
+    if(!("speechSynthesis" in window))return null;
+    var voices=window.speechSynthesis.getVoices()||[];
+    var ptbr=voices.filter(function(v){return /^pt[-_]BR$/i.test(v.lang||"");});
+    var names=["Francisca","Maria","Luciana","Leticia","Camila","Fernanda","Vitoria","Isabela","Helena","Mariana"];
+    for(var i=0;i<names.length;i++){
+      for(var j=0;j<ptbr.length;j++){
+        if((ptbr[j].name||"").toLowerCase().indexOf(names[i].toLowerCase())!==-1){
+          return ptbr[j];
+        }
+      }
+    }
+    return ptbr[0]||voices.find(function(v){return /^pt/i.test(v.lang||"");})||voices[0]||null;
+  }
+
+  function refreshVoice(){selectedVoice=pickVoice();}
+
+  if("speechSynthesis" in window){
+    refreshVoice();
+    window.speechSynthesis.onvoiceschanged=refreshVoice;
+  }
+
+  function speakBlocks(blocks){
+    if(!("speechSynthesis" in window)){
+      alert("A leitura em voz alta nao esta disponivel neste navegador.");
+      return;
+    }
+
+    speechRun++;
+    root.querySelector("#sk-pause").innerHTML="&#10074;&#10074; Pausar";
+
+    var run=speechRun;
+    window.speechSynthesis.cancel();
+    var index=0;
+
+    function next(){
+      if(run!==speechRun||index>=blocks.length)return;
+
+      var text=blocks[index++];
+      if(!text){setTimeout(next,250);return;}
+
+      var utterance=new SpeechSynthesisUtterance(String(text));
+      utterance.lang="pt-BR";
+      utterance.rate=0.88;
+      utterance.pitch=1.02;
+      utterance.volume=1;
+      if(selectedVoice)utterance.voice=selectedVoice;
+
+      utterance.onend=function(){
+        if(run===speechRun)setTimeout(next,360);
+      };
+      utterance.onerror=function(){
+        if(run===speechRun)setTimeout(next,250);
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    next();
+  }
+
+  function togglePause(){
+    if(!("speechSynthesis" in window))return;
+
+    if(window.speechSynthesis.paused){
+      window.speechSynthesis.resume();
+      root.querySelector("#sk-pause").innerHTML="&#10074;&#10074; Pausar";
+      root.querySelector("#sk-status").innerHTML="&Aacute;udio retomado.";
+    }else if(window.speechSynthesis.speaking){
+      window.speechSynthesis.pause();
+      root.querySelector("#sk-pause").innerHTML="&#9654; Continuar";
+      root.querySelector("#sk-status").innerHTML="&Aacute;udio pausado.";
+    }
+  }
+
+  function stopAudio(){
+    speechRun++;
+    if("speechSynthesis" in window)window.speechSynthesis.cancel();
+    root.querySelector("#sk-pause").innerHTML="&#10074;&#10074; Pausar";
+  }
+
+  function mark(el){
+    hotspots.forEach(function(h){
+      h.classList.remove("sk-selected");
+      h.removeAttribute("aria-current");
+    });
+    if(el){
+      el.classList.add("sk-selected");
+      el.setAttribute("aria-current","true");
+    }
+  }
+
+  function fullSpeech(item){
+    return item.speech.concat(item.description);
+  }
+
+  function openItem(key){
+    var item=items[key];
+    if(!item)return;
+
+    stopAudio();
+    current=key;
+    lastFocus=document.activeElement;
+
+    var hotspot=root.querySelector('.sk-hotspot[data-key="'+key+'"]');
+    mark(hotspot);
+
+    root.querySelector("#sk-title").textContent=item.title;
+    root.querySelector("#sk-body").innerHTML=item.html;
+    root.querySelector("#sk-status").innerHTML="O &aacute;udio &eacute; opcional. Clique em Ouvir se desejar.";
+
+    root.querySelector("#sk-modal").classList.add("sk-open");
+    root.querySelector("#sk-close").focus();
+  }
+
+  function closeItem(){
+    stopAudio();
+    root.querySelector("#sk-modal").classList.remove("sk-open");
+    if(lastFocus&&typeof lastFocus.focus==="function")lastFocus.focus();
+  }
+
+  function listenCurrent(){
+    if(!current||!items[current])return;
+    root.querySelector("#sk-status").innerHTML="Reproduzindo conte&uacute;do e audiodescri&ccedil;&atilde;o.";
+    speakBlocks(fullSpeech(items[current]));
+  }
+
+  function readPage(){
+    speakBlocks([
+      "Salinha interativa da media\u00e7\u00e3o pedag\u00f3gica.",
+      "Explore os pontos luminosos para conhecer cada descoberta.",
+      "O \u00e1udio \u00e9 opcional.",
+      "Para navegar com as setas, ative o bot\u00e3o Navega\u00e7\u00e3o por teclado."
+    ]);
+  }
+
+  function toggleKeyboardMode(){
+    keyboardMode=!keyboardMode;
+    var btn=root.querySelector("#sk-keyboard-mode");
+    btn.setAttribute("aria-pressed",keyboardMode ? "true" : "false");
+
+    if(keyboardMode){
+      var first=root.querySelector(".sk-hotspot.sk-selected")||hotspots[0];
+      if(first){
+        mark(first);
+        first.focus({preventScroll:true});
+      }
+      speakBlocks([
+        "Navega\u00e7\u00e3o por teclado ativada.",
+        "Use as setas para escolher um ponto luminoso.",
+        "Pressione Enter ou Espa\u00e7o para abrir o item.",
+        "A leitura em voz alta continua opcional."
+      ]);
+    }else{
+      stopAudio();
+    }
+  }
+
+  hotspots.forEach(function(h){
+    h.addEventListener("click",function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      openItem(h.getAttribute("data-key"));
+    });
+    h.addEventListener("focus",function(){mark(h);});
+  });
+
+  root.querySelector("#sk-read-page").addEventListener("click",readPage);
+  root.querySelector("#sk-keyboard-mode").addEventListener("click",toggleKeyboardMode);
+  root.querySelector("#sk-close").addEventListener("click",closeItem);
+  root.querySelector("#sk-listen").addEventListener("click",listenCurrent);
+  root.querySelector("#sk-pause").addEventListener("click",togglePause);
+
+  root.querySelector("#sk-modal").addEventListener("click",function(e){
+    if(e.target===this)closeItem();
+  });
+
+  function activeHotspot(){
+    var active=document.activeElement;
+    if(active&&active.classList&&active.classList.contains("sk-hotspot"))return active;
+    return root.querySelector(".sk-hotspot.sk-selected")||hotspots[0];
+  }
+
+  function move(direction){
+    if(!keyboardMode)return;
+
+    var from=activeHotspot();
+    if(!from)return;
+
+    var r=from.getBoundingClientRect();
+    var cx=r.left+r.width/2;
+    var cy=r.top+r.height/2;
+
+    var candidates=hotspots.filter(function(el){
+      if(el===from)return false;
+
+      var rr=el.getBoundingClientRect();
+      var x=rr.left+rr.width/2;
+      var y=rr.top+rr.height/2;
+
+      if(direction==="left")return x<cx-3;
+      if(direction==="right")return x>cx+3;
+      if(direction==="up")return y<cy-3;
+      if(direction==="down")return y>cy+3;
+      return false;
+    });
+
+    if(!candidates.length)return;
+
+    candidates.sort(function(a,b){
+      function score(el){
+        var rr=el.getBoundingClientRect();
+        var x=rr.left+rr.width/2;
+        var y=rr.top+rr.height/2;
+        var dx=Math.abs(x-cx);
+        var dy=Math.abs(y-cy);
+        return (direction==="left"||direction==="right") ? dx+dy*0.72 : dy+dx*0.72;
+      }
+      return score(a)-score(b);
+    });
+
+    var target=candidates[0];
+    mark(target);
+    target.focus({preventScroll:true});
+  }
+
+  document.addEventListener("keydown",function(e){
+    var modalOpen=root.querySelector("#sk-modal").classList.contains("sk-open");
+    var focusInside=root.contains(document.activeElement);
+
+    if(e.key==="Escape"&&modalOpen){
+      e.preventDefault();
+      closeItem();
+      return;
+    }
+
+    if(modalOpen||!focusInside)return;
+
+    if(keyboardMode){
+      if(e.key==="ArrowLeft"){
+        e.preventDefault();move("left");
+      }else if(e.key==="ArrowRight"){
+        e.preventDefault();move("right");
+      }else if(e.key==="ArrowUp"){
+        e.preventDefault();move("up");
+      }else if(e.key==="ArrowDown"){
+        e.preventDefault();move("down");
+      }
+    }
+
+    if((e.key==="Enter"||e.key===" ")&&
+       document.activeElement&&
+       document.activeElement.classList.contains("sk-hotspot")){
+      e.preventDefault();
+      openItem(document.activeElement.getAttribute("data-key"));
+    }
+  });
+})();
+</script>
+</div>
