@@ -5,10 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FMU | Tours virtuais e negociação imobiliária</title>
 <link rel="stylesheet" href="aluno-v19.css">
+<style>
+.office-bg{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:0;pointer-events:none}.app{background:#020b0f!important}.app::before{content:"";position:fixed;inset:0;z-index:.5;pointer-events:none;background:linear-gradient(180deg,rgba(2,10,14,.10),rgba(2,10,14,.36) 42%,rgba(2,10,14,.62))}.app::after{z-index:1!important}.page{position:relative;z-index:2!important}
+</style>
 </head>
 <body>
 
 <div class="app">
+  <img id="officeBg" class="office-bg" alt="" aria-hidden="true">
   <div class="page">
     <header class="header">
       <div class="logo-box"><img src="logo.svg" alt="FMU FIAM-FAAM"></div>
@@ -33,71 +37,34 @@
           <article class="news-card" id="newsCard" aria-live="polite">
             <button class="news-close" id="newsClose" type="button" aria-label="Fechar jornal">×</button>
             <div class="news-inner">
-              <div class="news-mast">
-                <strong>news.</strong>
-                <span>pesquisa &amp; mercado imobiliário</span>
-              </div>
-              <div class="news-meta">
-                <span>University of Texas at Dallas</span>
-                <span>5 set. 2025</span>
-                <span>Information Systems Research</span>
-              </div>
+              <div class="news-mast"><strong>news.</strong><span>pesquisa &amp; mercado imobiliário</span></div>
+              <div class="news-meta"><span>University of Texas at Dallas</span><span>5 set. 2025</span><span>Information Systems Research</span></div>
               <div class="news-kicker" id="newsKicker"></div>
               <div class="news-content">
-                <div class="news-head-block">
-                  <h2 class="news-headline" id="newsHeadline"></h2>
-                  <p class="news-deck" id="newsDeck"></p>
-                </div>
-                <aside class="news-fact">
-                  <span class="news-fact-label">Dado central</span>
-                  <span class="news-metric">
-                    <strong id="newsMetric"></strong>
-                    <small id="newsMetricLabel"></small>
-                  </span>
-                </aside>
+                <div class="news-head-block"><h2 class="news-headline" id="newsHeadline"></h2><p class="news-deck" id="newsDeck"></p></div>
+                <aside class="news-fact"><span class="news-fact-label">Dado central</span><span class="news-metric"><strong id="newsMetric"></strong><small id="newsMetricLabel"></small></span></aside>
               </div>
-              <div class="news-brief">
-                <p id="newsBrief1"></p>
-                <p id="newsBrief2"></p>
-              </div>
-              <div class="news-foot">
-                <span>Recorte organizado a partir da divulgação institucional da pesquisa.</span>
-                <a href="https://news.utdallas.edu/business-management/virtual-reality-tours-real-estate-2025/" target="_blank" rel="noopener">Matéria original ↗</a>
-              </div>
+              <div class="news-brief"><p id="newsBrief1"></p><p id="newsBrief2"></p></div>
+              <div class="news-foot"><span>Recorte organizado a partir da divulgação institucional da pesquisa.</span><a href="https://news.utdallas.edu/business-management/virtual-reality-tours-real-estate-2025/" target="_blank" rel="noopener">Matéria original ↗</a></div>
             </div>
           </article>
         </section>
 
         <section class="reflect-card">
-          <div class="reflect-head">
-            <h3>Vamos refletir?</h3>
-            <b id="reflectCount">0 de 5</b>
-          </div>
+          <div class="reflect-head"><h3>Vamos refletir?</h3><b id="reflectCount">0 de 5</b></div>
           <div class="question">
             <p>Como o uso de tours virtuais pode tornar a apresentação do imóvel mais estratégica e agregar valor ao processo de negociação imobiliária?</p>
             <div class="note">Registre sua contribuição aqui na dinâmica ou diretamente no <strong>Fórum de Interação</strong>.</div>
           </div>
           <form class="contribution-form" id="mainForm">
-            <div class="field">
-              <label for="studentName">Nome e sobrenome</label>
-              <input id="studentName" maxlength="70" placeholder="Ex.: Maria Silva">
-            </div>
-            <div class="field">
-              <label for="studentBody">Sua contribuição</label>
-              <textarea id="studentBody" maxlength="1800" placeholder="Escreva sua contribuição..."></textarea>
-            </div>
+            <div class="field"><label for="studentName">Nome e sobrenome</label><input id="studentName" maxlength="70" placeholder="Ex.: Maria Silva"></div>
+            <div class="field"><label for="studentBody">Sua contribuição</label><textarea id="studentBody" maxlength="1800" placeholder="Escreva sua contribuição..."></textarea></div>
             <div class="rating-col">
               <div class="rating-only" id="ratingOnly">
                 <span class="rating-label">O que você achou da dinâmica?</span>
-                <div class="stars" id="mainStars">
-                  <button class="star" type="button" data-v="1">★</button>
-                  <button class="star" type="button" data-v="2">★</button>
-                  <button class="star" type="button" data-v="3">★</button>
-                  <button class="star" type="button" data-v="4">★</button>
-                  <button class="star" type="button" data-v="5">★</button>
-                </div>
+                <div class="stars" id="mainStars"><button class="star" type="button" data-v="1">★</button><button class="star" type="button" data-v="2">★</button><button class="star" type="button" data-v="3">★</button><button class="star" type="button" data-v="4">★</button><button class="star" type="button" data-v="5">★</button></div>
               </div>
-              <div class="rating-note" id="ratingNote">Estrelas já registradas na sua primeira participação.</div>
+              <div class="rating-note" id="ratingNote">Sua percepção já foi registrada na primeira participação.</div>
               <button class="publish" type="submit">Publicar</button>
             </div>
           </form>
@@ -106,28 +73,16 @@
 
       <aside class="comments-panel">
         <div class="comments-title">Comentários <span id="commentCount">0</span></div>
-        <div class="comment-actions-top">
-          <button class="tool" id="expandAll" type="button">Expandir todos</button>
-          <button class="tool" id="collapseAll" type="button">Recolher todos</button>
-        </div>
-        <div class="comments-scroll">
-          <div id="commentList"></div>
-        </div>
+        <div class="comment-actions-top"><button class="tool" id="expandAll" type="button">Expandir todos</button><button class="tool" id="collapseAll" type="button">Recolher todos</button></div>
+        <div class="comments-scroll"><div id="commentList"></div></div>
       </aside>
     </main>
   </div>
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="bg-v19-a.js"></script>
-<script src="bg-v19-b.js"></script>
 <script>
-(function () {
-  if (window.__BG_V19_A && window.__BG_V19_B) {
-    var bg = 'url("data:image/webp;base64,' + window.__BG_V19_A + window.__BG_V19_B + '")';
-    document.documentElement.style.setProperty('--office-bg', bg);
-  }
-})();
+fetch('office-v19.webp?v=2').then(function(r){return r.text()}).then(function(b64){var el=document.getElementById('officeBg');if(el)el.src='data:image/webp;base64,'+b64.trim()}).catch(function(){});
 </script>
 <script type="module" src="aluno-v19.js"></script>
 </body>
