@@ -6,13 +6,12 @@
 <title>FMU | Tours virtuais e negociação imobiliária</title>
 <link rel="stylesheet" href="aluno-v19.css">
 <style>
-.office-bg{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:0;pointer-events:none}.app{background:#020b0f!important}.app::before{content:"";position:fixed;inset:0;z-index:.5;pointer-events:none;background:linear-gradient(180deg,rgba(2,10,14,.10),rgba(2,10,14,.36) 42%,rgba(2,10,14,.62))}.app::after{z-index:1!important}.page{position:relative;z-index:2!important}
+.app{background:linear-gradient(180deg,rgba(2,10,14,.18),rgba(2,10,14,.62) 36%,rgba(2,10,14,.82)),url("office-background-v20.jpg?v=21") center center/cover no-repeat fixed!important}.app::after{z-index:1!important}.page{position:relative;z-index:2!important}
 </style>
 </head>
 <body>
 
 <div class="app">
-  <img id="officeBg" class="office-bg" alt="" aria-hidden="true">
   <div class="page">
     <header class="header">
       <div class="logo-box"><img src="logo.svg" alt="FMU FIAM-FAAM"></div>
@@ -81,9 +80,6 @@
   <div class="toast" id="toast"></div>
 </div>
 
-<script>
-fetch('office-v19.webp?v=2').then(function(r){return r.text()}).then(function(b64){var el=document.getElementById('officeBg');if(el)el.src='data:image/webp;base64,'+b64.trim()}).catch(function(){});
-</script>
 <script type="module" src="aluno-v19.js"></script>
 </body>
 </html>
