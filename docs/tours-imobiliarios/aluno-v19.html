@@ -88,7 +88,7 @@
             </div>
             <div class="rating-col">
               <div class="rating-only" id="ratingOnly">
-                <span class="rating-label">Avaliação</span>
+                <span class="rating-label">O que você achou da dinâmica?</span>
                 <div class="stars" id="mainStars">
                   <button class="star" type="button" data-v="1">★</button>
                   <button class="star" type="button" data-v="2">★</button>
@@ -97,7 +97,7 @@
                   <button class="star" type="button" data-v="5">★</button>
                 </div>
               </div>
-              <div class="rating-note" id="ratingNote">Avaliação já registrada na sua primeira participação.</div>
+              <div class="rating-note" id="ratingNote">Estrelas já registradas na sua primeira participação.</div>
               <button class="publish" type="submit">Publicar</button>
             </div>
           </form>
@@ -121,6 +121,14 @@
 
 <script src="bg-v19-a.js"></script>
 <script src="bg-v19-b.js"></script>
+<script>
+(function () {
+  if (window.__BG_V19_A && window.__BG_V19_B) {
+    var bg = 'url("data:image/webp;base64,' + window.__BG_V19_A + window.__BG_V19_B + '")';
+    document.documentElement.style.setProperty('--office-bg', bg);
+  }
+})();
+</script>
 <script type="module" src="aluno-v19.js"></script>
 </body>
 </html>
