@@ -4,3 +4,8 @@ window.FORUM_CONFIG = {
   activityKey: "mercado-imobiliario-tours-utd-2025",
   refreshMs: 5000
 };
+
+document.addEventListener("DOMContentLoaded", function () {
+  const brandImg = document.querySelector(".brand img");
+  if (brandImg) brandImg.src = "logo.svg";
+});
