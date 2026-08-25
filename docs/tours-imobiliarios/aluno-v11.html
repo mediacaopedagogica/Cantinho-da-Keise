@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tours virtuais e negociação imobiliária</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
+<link rel="stylesheet" href="v11.css">
+</head>
+<body>
+<div id="panorama"></div><div class="veil"></div>
+
+<header class="topbar">
+  <div class="logo"><img src="logo.svg" alt="FMU FIAM-FAAM"></div>
+  <div class="title"><b>Tours virtuais e negociação imobiliária</b><span>Mercado e Operações Imobiliárias · experiência 360°</span></div>
+  <div class="progress"><i></i> Explorados: <span id="progressText">0 / 5</span></div>
+</header>
+
+<nav class="study-nav" id="studyNav" aria-label="Recortes da pesquisa">
+  <button data-key="study"><span class="n">1</span>Sobre o estudo</button>
+  <button data-key="time"><span class="n">2</span>Tempo no mercado</button>
+  <button data-key="price"><span class="n">3</span>Preço de venda</button>
+  <button data-key="information"><span class="n">4</span>Informação ao comprador</button>
+  <button data-key="agent"><span class="n">5</span>Papel do profissional</button>
+</nav>
+
+<div class="tour-tools">
+  <div class="hint"><b>360° interativo</b><span>Arraste para explorar o ambiente</span></div>
+  <button id="toggleRotate" title="Pausar ou retomar giro">⏯</button>
+  <button id="resetView" title="Centralizar visualização">↺</button>
+  <button id="fullscreen" title="Tela cheia">⛶</button>
+</div>
+<div class="credit">Panorama: ESO / Wikimedia Commons · CC BY 4.0</div>
+
+<section class="reflection">
+  <div class="reflection-head"><h2>Vamos refletir?</h2><span class="step" id="reflectionStep">0 de 5</span></div>
+  <p>Como o uso de tours virtuais pode tornar a apresentação do imóvel mais estratégica e agregar valor ao processo de negociação imobiliária?</p>
+  <div class="where">Registre sua contribuição aqui na dinâmica ou diretamente no <strong>Fórum de Interação.</strong></div>
+  <button class="contribute" id="openComposer" disabled>Explore os 5 recortes para participar</button>
+</section>
+
+<aside class="comments-panel" id="commentsPanel">
+  <div class="comment-head"><div><b>Comentários</b><small><span id="commentCount">0</span></small></div><button class="panel-toggle" id="panelToggle" title="Recolher comentários">⌃</button></div>
+  <div class="comment-scroll">
+    <div class="comment-tools"><button class="mini-btn" id="expandAll">Expandir todos</button><button class="mini-btn" id="collapseAll">Recolher todos</button></div>
+    <div id="commentList"><div class="empty">Carregando comentários...</div></div>
+  </div>
+  <div class="comment-footer"><button class="new-comment" id="newComment">Registrar nova contribuição</button></div>
+</aside>
+
+<div class="modal-back" id="paperModal">
+  <article class="paper">
+    <button class="paper-close" id="paperClose" type="button">×</button>
+    <div class="mast">news.<small>recorte da pesquisa</small></div>
+    <div class="paper-meta"><span>University of Texas at Dallas</span><span>5 set. 2025</span><span>Information Systems Research</span></div>
+    <div style="font:900 9px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;margin-top:9px" id="paperSection"></div>
+    <h2 id="paperHeadline"></h2>
+    <p class="paper-sub" id="paperSub"></p>
+    <div class="byline">Pesquisa sobre o papel informativo de tours em realidade virtual na comercialização de imóveis</div>
+    <div class="paper-columns" id="paperColumns"></div>
+    <div class="paper-foot"><span>Fonte: News Center · University of Texas at Dallas</span><a href="https://news.utdallas.edu/business-management/virtual-reality-tours-real-estate-2025/" target="_blank" rel="noopener noreferrer">Ler matéria original ↗</a></div>
+  </article>
+</div>
+
+<div class="modal-back" id="composerModal">
+  <form class="composer-card" id="mainForm">
+    <h3>Registrar contribuição</h3>
+    <label for="studentName">Nome e sobrenome</label>
+    <input id="studentName" maxlength="70" autocomplete="name" placeholder="Ex.: Maria Silva">
+    <label for="studentBody">Sua contribuição</label>
+    <textarea id="studentBody" maxlength="1800" placeholder="Compartilhe sua reflexão..."></textarea>
+    <div id="mainRating">
+      <label>O que você achou da dinâmica? Marque de 1 a 5 estrelas.</label>
+      <div class="form-stars" id="mainStars">
+        <button type="button" data-v="1">★</button><button type="button" data-v="2">★</button><button type="button" data-v="3">★</button><button type="button" data-v="4">★</button><button type="button" data-v="5">★</button>
+      </div>
+    </div>
+    <div class="form-actions"><button type="button" id="cancelMain">Cancelar</button><button class="publish" type="submit">Publicar contribuição</button></div>
+  </form>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+<script type="module" src="aluno-v11.js"></script>
+</body>
+</html>
