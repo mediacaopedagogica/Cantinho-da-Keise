@@ -1,1 +1,126 @@
-PLACEHOLDER
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FMU | Tours virtuais e negociação imobiliária</title>
+<link rel="stylesheet" href="aluno-v19.css">
+</head>
+<body>
+
+<div class="app">
+  <div class="page">
+    <header class="header">
+      <div class="logo-box"><img src="logo.svg" alt="FMU FIAM-FAAM"></div>
+      <div class="title-wrap">
+        <h1>Tours virtuais e negociação imobiliária</h1>
+        <span>Mercado e Operações Imobiliárias</span>
+      </div>
+      <div class="explored"><i></i>Explorados: <span id="exploredTop">0 / 5</span></div>
+    </header>
+
+    <main class="workspace">
+      <section class="left">
+        <nav class="tabs" aria-label="Recortes da pesquisa">
+          <button class="tab" data-key="study"><span class="num">1</span><span class="txt">Sobre o estudo</span></button>
+          <button class="tab" data-key="time"><span class="num">2</span><span class="txt">Tempo no mercado</span></button>
+          <button class="tab" data-key="price"><span class="num">3</span><span class="txt">Preço de venda</span></button>
+          <button class="tab" data-key="info"><span class="num">4</span><span class="txt">Informação ao comprador</span></button>
+          <button class="tab" data-key="agent"><span class="num">5</span><span class="txt">Papel do profissional</span></button>
+        </nav>
+
+        <section class="story-stage">
+          <article class="news-card" id="newsCard" aria-live="polite">
+            <button class="news-close" id="newsClose" type="button" aria-label="Fechar jornal">×</button>
+            <div class="news-inner">
+              <div class="news-mast">
+                <strong>news.</strong>
+                <span>pesquisa &amp; mercado imobiliário</span>
+              </div>
+              <div class="news-meta">
+                <span>University of Texas at Dallas</span>
+                <span>5 set. 2025</span>
+                <span>Information Systems Research</span>
+              </div>
+              <div class="news-kicker" id="newsKicker"></div>
+              <div class="news-content">
+                <div class="news-head-block">
+                  <h2 class="news-headline" id="newsHeadline"></h2>
+                  <p class="news-deck" id="newsDeck"></p>
+                </div>
+                <aside class="news-fact">
+                  <span class="news-fact-label">Dado central</span>
+                  <span class="news-metric">
+                    <strong id="newsMetric"></strong>
+                    <small id="newsMetricLabel"></small>
+                  </span>
+                </aside>
+              </div>
+              <div class="news-brief">
+                <p id="newsBrief1"></p>
+                <p id="newsBrief2"></p>
+              </div>
+              <div class="news-foot">
+                <span>Recorte organizado a partir da divulgação institucional da pesquisa.</span>
+                <a href="https://news.utdallas.edu/business-management/virtual-reality-tours-real-estate-2025/" target="_blank" rel="noopener">Matéria original ↗</a>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="reflect-card">
+          <div class="reflect-head">
+            <h3>Vamos refletir?</h3>
+            <b id="reflectCount">0 de 5</b>
+          </div>
+          <div class="question">
+            <p>Como o uso de tours virtuais pode tornar a apresentação do imóvel mais estratégica e agregar valor ao processo de negociação imobiliária?</p>
+            <div class="note">Registre sua contribuição aqui na dinâmica ou diretamente no <strong>Fórum de Interação</strong>.</div>
+          </div>
+          <form class="contribution-form" id="mainForm">
+            <div class="field">
+              <label for="studentName">Nome e sobrenome</label>
+              <input id="studentName" maxlength="70" placeholder="Ex.: Maria Silva">
+            </div>
+            <div class="field">
+              <label for="studentBody">Sua contribuição</label>
+              <textarea id="studentBody" maxlength="1800" placeholder="Escreva sua contribuição..."></textarea>
+            </div>
+            <div class="rating-col">
+              <div class="rating-only" id="ratingOnly">
+                <span class="rating-label">Avaliação</span>
+                <div class="stars" id="mainStars">
+                  <button class="star" type="button" data-v="1">★</button>
+                  <button class="star" type="button" data-v="2">★</button>
+                  <button class="star" type="button" data-v="3">★</button>
+                  <button class="star" type="button" data-v="4">★</button>
+                  <button class="star" type="button" data-v="5">★</button>
+                </div>
+              </div>
+              <div class="rating-note" id="ratingNote">Avaliação já registrada na sua primeira participação.</div>
+              <button class="publish" type="submit">Publicar</button>
+            </div>
+          </form>
+        </section>
+      </section>
+
+      <aside class="comments-panel">
+        <div class="comments-title">Comentários <span id="commentCount">0</span></div>
+        <div class="comment-actions-top">
+          <button class="tool" id="expandAll" type="button">Expandir todos</button>
+          <button class="tool" id="collapseAll" type="button">Recolher todos</button>
+        </div>
+        <div class="comments-scroll">
+          <div id="commentList"></div>
+        </div>
+      </aside>
+    </main>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="bg-v19-a.js"></script>
+<script src="bg-v19-b.js"></script>
+<script type="module" src="aluno-v19.js"></script>
+</body>
+</html>
