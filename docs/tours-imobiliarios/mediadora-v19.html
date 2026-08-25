@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mediação Pedagógica · Tours Virtuais</title>
+<style>
+:root{--red:#c6202f;--ink:#1d2529;--muted:#66757b;--line:#d9dfe1}
+*{box-sizing:border-box} html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f5f6f6;color:var(--ink)}
+button,input,textarea{font:inherit} .top{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);padding:16px 24px;display:flex;justify-content:space-between;gap:16px;align-items:center}
+.top h1{margin:0;font-size:21px} .top p{margin:3px 0 0;color:var(--muted);font-size:12px} .badge{background:var(--red);color:#fff;padding:7px 10px;border-radius:999px;font-size:11px;font-weight:900}
+.shell{width:min(1050px,calc(100% - 30px));margin:20px auto 50px} .login{max-width:420px;margin:80px auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 16px 40px rgba(0,0,0,.06)}
+.login.hidden{display:none} .login h2{margin:0 0 6px;font-size:19px} .login p{color:var(--muted);font-size:12px;line-height:1.5} .login input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-top:8px}
+.primary{border:0;border-radius:10px;background:var(--red);color:#fff;padding:10px 13px;font-weight:900} .login .primary{width:100%;margin-top:10px}
+.app{display:none} .app.open{display:block} .toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.toolbar h2{margin:0;font-size:18px} .toolbar small{color:var(--muted)} .actions{display:flex;gap:8px;flex-wrap:wrap}
+.ghost{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 10px;color:#334148;font-size:11px;font-weight:800}
+.general{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px} .general textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:10px;padding:10px 11px;resize:vertical} .general .row{display:flex;justify-content:flex-end;margin-top:8px}
+.list{display:grid;gap:10px} .empty{padding:25px;text-align:center;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:14px}
+.thread{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden} .thread.mediator{border-color:#efb6bc;background:#fff7f8}
+.thread summary{list-style:none;cursor:pointer;padding:13px 15px;display:flex;justify-content:space-between;gap:12px} .thread summary::-webkit-details-marker{display:none}
+.name{font-weight:900;font-size:13px} .name.med{display:inline-block;background:var(--red);color:#fff;border-radius:999px;padding:4px 8px} .tag{color:var(--red);font-size:10px;font-weight:900;text-transform:uppercase;margin-left:5px}
+.time{display:block;color:#8a979c;font-size:10px;margin-top:3px} .preview{color:#617178;font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:760px}
+.chev{color:var(--red);font-size:16px} .thread[open] .chev{transform:rotate(180deg)} .body{padding:0 15px 14px} .text{font-size:13px;line-height:1.55;white-space:pre-wrap} .stars{color:#d7a544;margin-top:6px}
+.replyline{display:flex;gap:8px;align-items:center;margin-top:9px} .reply{border:0;background:transparent;color:var(--red);padding:0;font-size:11px;font-weight:900} .count{font-size:10px;color:#89979c}
+.rform{display:none;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fafafa} .rform.open{display:block} .rform textarea{width:100%;min-height:75px;border:1px solid var(--line);border-radius:9px;padding:9px;resize:vertical}
+.racts{display:flex;justify-content:flex-end;gap:7px;margin-top:7px} .racts button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 9px;font-size:10px;font-weight:800} .racts .send{background:var(--red);border-color:var(--red);color:#fff}
+.children{margin:10px 0 0 14px;padding-left:12px;border-left:2px solid #f1c9ce} .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#26343a;color:#fff;padding:10px 13px;border-radius:10px;font-size:11px;font-weight:800;opacity:0;pointer-events:none;transition:.2s} .toast.show{opacity:1}
+@media(max-width:700px){.top{align-items:flex-start;flex-direction:column}.shell{width:min(100% - 18px,1050px)}}
+</style>
+</head>
+<body>
+<header class="top"><div><h1>Mediação Pedagógica · Tours Virtuais</h1><p>Área exclusiva para acompanhar e responder às contribuições da turma.</p></div><span class="badge">Mediadora Pedagógica</span></header>
+<main class="shell">
+<section class="login" id="login"><h2>Acesso da mediadora</h2><p>Digite a senha da área de mediação. Seus comentários serão publicados automaticamente como <strong>Mediadora Pedagógica</strong>, sem nome e sem estrelas.</p>
+<form id="loginForm"><input id="password" type="password" autocomplete="current-password" placeholder="Senha"><button class="primary" type="submit">Entrar</button></form></section>
+<section class="app" id="app">
+<div class="toolbar"><div><h2>Comentários da turma</h2><small><span id="total">0</span> comentários</small></div><div class="actions"><button class="ghost" id="expand" type="button">Expandir todos</button><button class="ghost" id="collapse" type="button">Recolher todos</button><button class="ghost" id="logout" type="button">Sair</button></div></div>
+<form class="general" id="generalForm"><textarea id="generalText" maxlength="1800" placeholder="Publicar uma orientação geral como Mediadora Pedagógica..."></textarea><div class="row"><button class="primary" type="submit">Publicar orientação</button></div></form>
+<div class="list" id="list"><div class="empty">Carregando comentários...</div></div>
+</section></main><div class="toast" id="toast"></div>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/+esm";
+const supabase=createClient("https://stsetmvuacvogbcolouo.supabase.co","sb_publishable_wrULbAYnACY62_ziencB5w_nfRqPoox");
+const ACTIVITY_KEY="mercado-imobiliario-tours-utd-2025";
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+let pass=sessionStorage.getItem("mediator_pass")||"",comments=[],ratings=[];
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2300)}
+function fmt(x){return new Date(x).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}
+function starText(n){return n?"★".repeat(n)+"☆".repeat(5-n):""}
+function rating(c){return ratings.find(r=>r.normalized_name===c.normalized_name)}
+function first(c){return c.author_role==="student"&&comments.filter(x=>x.author_role==="student"&&x.normalized_name===c.normalized_name).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at))[0]?.id===c.id}
+async function verify(p){const q=await supabase.rpc("verify_mediator_password",{p_password:p});return !q.error&&q.data===true}
+async function unlock(p){if(!(await verify(p))){toast("Senha não autorizada.");return false}pass=p;sessionStorage.setItem("mediator_pass",p);$("#login").classList.add("hidden");$("#app").classList.add("open");await refresh();return true}
+$("#loginForm").onsubmit=async e=>{e.preventDefault();await unlock($("#password").value)};$("#logout").onclick=()=>{sessionStorage.removeItem("mediator_pass");location.reload()};if(pass)unlock(pass);
+async function refresh(){
+ if(!pass)return;
+ const open=new Set($$(".thread[open]").map(d=>d.dataset.id));
+ const [c,r]=await Promise.all([supabase.from("forum_comments").select("*").eq("activity_key",ACTIVITY_KEY).order("created_at",{ascending:true}),supabase.from("forum_ratings").select("*").eq("activity_key",ACTIVITY_KEY)]);
+ if(c.error||r.error){$("#list").innerHTML='<div class="empty">Não foi possível carregar os comentários agora.</div>';return}
+ comments=c.data||[];ratings=r.data||[];render(open);
+}
+function tree(){const m=new Map(comments.map(c=>[c.id,{...c,children:[]}])),roots=[];m.forEach(c=>{if(c.parent_id&&m.has(c.parent_id))m.get(c.parent_id).children.push(c);else roots.push(c)});return roots.reverse()}
+const desc=c=>c.children.reduce((n,x)=>n+1+desc(x),0);
+function rform(parent){
+ const f=document.createElement("form");f.className="rform";f.innerHTML='<textarea maxlength="1800" placeholder="Responder como Mediadora Pedagógica..."></textarea><div class="racts"><button type="button" class="cancel">Cancelar</button><button type="submit" class="send">Publicar resposta</button></div>';
+ $(".cancel",f).onclick=()=>f.classList.remove("open");
+ f.onsubmit=async e=>{e.preventDefault();const body=$("textarea",f).value.trim();if(body.length<2){toast("Escreva sua resposta.");return}const q=await supabase.rpc("submit_mediator_comment_with_password",{p_activity_key:ACTIVITY_KEY,p_parent_id:parent.id,p_body:body,p_password:pass});if(q.error){toast(q.error.message||"Não foi possível publicar.");return}$("textarea",f).value="";f.classList.remove("open");await refresh();toast("Comentário publicado como Mediadora Pedagógica.")};
+ return f;
+}
+function node(c,open){
+ const d=document.createElement("details");d.className="thread"+(c.author_role==="mediator"?" mediator":"");d.dataset.id=c.id;d.open=open.has(c.id);const med=c.author_role==="mediator";
+ const s=document.createElement("summary");s.innerHTML=`<div><div>${med?'<span class="name med">Mediadora Pedagógica</span><span class="tag">comentou</span>':'<span class="name"></span>'}</div><time class="time"></time><div class="preview"></div></div><div class="chev">⌄</div>`;
+ if(!med)$(".name",s).textContent=c.author_name;$(".time",s).textContent=fmt(c.created_at);$(".preview",s).textContent=c.body;d.appendChild(s);
+ const b=document.createElement("div");b.className="body";const tx=document.createElement("div");tx.className="text";tx.textContent=c.body;b.appendChild(tx);
+ if(!med&&first(c)){const r=rating(c);if(r){const st=document.createElement("div");st.className="stars";st.textContent=starText(r.stars);b.appendChild(st)}}
+ const line=document.createElement("div");line.className="replyline";const rb=document.createElement("button");rb.type="button";rb.className="reply";rb.textContent="Responder como mediadora";
+ const ct=document.createElement("span");ct.className="count";const n=desc(c);ct.textContent=n?`${n} ${n===1?"resposta":"respostas"}`:"Nenhuma resposta";line.append(rb,ct);b.appendChild(line);
+ const rf=rform(c);rb.onclick=()=>rf.classList.toggle("open");b.appendChild(rf);if(c.children.length){const ch=document.createElement("div");ch.className="children";c.children.forEach(x=>ch.appendChild(node(x,open)));b.appendChild(ch)}d.appendChild(b);return d;
+}
+function render(open=new Set()){$("#total").textContent=comments.length;const l=$("#list");l.innerHTML="";if(!comments.length){l.innerHTML='<div class="empty">Ainda não há comentários na dinâmica.</div>';return}tree().forEach(c=>l.appendChild(node(c,open)))}
+$("#expand").onclick=()=>$$(".thread").forEach(d=>d.open=true);$("#collapse").onclick=()=>$$(".thread").forEach(d=>d.open=false);
+$("#generalForm").onsubmit=async e=>{e.preventDefault();const body=$("#generalText").value.trim();if(body.length<2){toast("Escreva sua orientação.");return}const q=await supabase.rpc("submit_mediator_comment_with_password",{p_activity_key:ACTIVITY_KEY,p_parent_id:null,p_body:body,p_password:pass});if(q.error){toast(q.error.message||"Não foi possível publicar.");return}$("#generalText").value="";await refresh();toast("Orientação publicada como Mediadora Pedagógica.")};
+setInterval(()=>{if(pass)refresh()},4000);
+</script>
+</body></html>
