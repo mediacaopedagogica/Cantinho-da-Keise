@@ -25,7 +25,7 @@
         <button id="togglePassword" class="icon-btn" type="button" aria-label="Mostrar senha">👁️</button>
       </div>
       <button id="loginBtn" class="primary-btn">Entrar 💗</button>
-      <button id="openSetupBtn" class="text-btn">Primeiro acesso da família</button>
+      <button id="openSetupBtn" class="text-btn hidden" tabindex="-1" aria-hidden="true">Primeiro acesso da família</button>
       <p id="loginMsg" class="status-text"></p>
     </div>
   </section>
@@ -46,12 +46,12 @@
       <div class="profile-mini">
         <div id="myAvatar" class="avatar pastel-avatar">🙂</div>
         <div class="grow"><small class="muted">Você está como</small><strong id="myName">Família</strong><small id="myRole">online</small></div>
-        <button id="logoutBtn" class="tiny-btn" title="Sair e trocar de conta">Trocar conta</button>
+        <button id="logoutBtn" class="tiny-btn profile-exit-btn" title="Sair da conta">Sair</button>
       </div>
       <nav class="nav-tabs">
         <button class="nav-btn active" data-tab="chats">💬 <span>Conversas</span></button>
-        <button class="nav-btn" data-tab="family">👨‍👩‍👧 <span>Família</span></button>
         <button class="nav-btn" data-tab="calendar">🎂 <span>Calendário</span></button>
+        <button class="nav-btn hidden" data-tab="supervision" id="supervisionNav">👀 <span>Supervisão</span></button>
         <button class="nav-btn" data-tab="parents" id="parentsNav">🛡️ <span>Super Pais</span></button>
       </nav>
       <div class="chat-list-head"><strong>Conversas</strong><button id="newGroupBtn" class="tiny-btn">＋ Grupo</button></div>
@@ -70,10 +70,11 @@
           <div class="avatar pastel-avatar" id="chatAvatar">💬</div>
           <div class="grow"><h3 id="chatTitle">Conversa</h3><small id="chatSubtitle">Família</small></div>
         </header>
+        <div id="supervisionNotice" class="supervision-notice hidden">👀 <strong>Modo Supervisão</strong><span>Você está acompanhando esta conversa da Isa em modo somente leitura.</span></div>
         <button id="pinnedBar" class="pinned-bar hidden" type="button"></button>
         <div id="messages" class="messages"></div>
         <div id="typingLine" class="typing-line"></div>
-        <footer class="composer">
+        <footer id="composer" class="composer">
           <div class="group-plus-wrap">
             <button class="icon-btn hidden" id="groupPlusBtn" title="Mais opções">＋</button>
             <div id="groupPlusMenu" class="plus-menu hidden">
@@ -96,15 +97,21 @@
         </footer>
       </section>
 
-      <section id="familyPanel" class="panel-pad hidden"><div class="panel-title"><div><h2>Minha Família 💕</h2><p class="muted">Perfis e presença.</p></div></div><div id="familyGrid" class="family-grid"></div></section>
+      <section id="familyPanel" class="panel-pad hidden"><div id="familyGrid" class="family-grid"></div></section>
 
       <section id="calendarPanel" class="panel-pad hidden">
         <div class="panel-title"><div><h2>Calendário da Família 🎂</h2><p class="muted">Aniversários e momentos importantes.</p></div><button id="newEventBtn" class="soft-btn">＋ Evento</button></div>
         <div id="birthdayStrip" class="birthday-strip"></div><div id="calendarList" class="calendar-list"></div>
       </section>
 
+      <section id="supervisionPanel" class="panel-pad hidden">
+        <div class="panel-title supervision-title"><div><h2>Supervisão da Isa 👀💜</h2><p class="muted">Acompanhe de forma transparente as conversas que envolvem a Isa.</p></div></div>
+        <div class="supervision-info">🛡️ <div><strong>Conta supervisionada</strong><p>Aqui aparecem somente conversas em que a Isa participa. Conversas entre adultos continuam privadas.</p></div></div>
+        <div id="supervisionList" class="supervision-list"></div>
+      </section>
+
       <section id="parentsPanel" class="panel-pad hidden">
-        <div class="panel-title"><div><h2>Central Super Pais 🛡️</h2><p class="muted">Acessos, permissões e supervisão transparente da Isa.</p></div><button id="newMemberBtn" class="soft-btn">＋ Familiar</button></div>
+        <div class="panel-title"><div><h2>Central Super Pais 🛡️</h2><p class="muted">Acessos, permissões e configurações da família.</p></div><button id="newMemberBtn" class="soft-btn">＋ Familiar</button></div>
         <div class="parent-cards"><article class="parent-stat"><span>🔔</span><strong id="alertCount">0</strong><small>alertas</small></article><article class="parent-stat"><span>👥</span><strong id="memberCount">0</strong><small>familiares</small></article><article class="parent-stat"><span>🟢</span><strong id="onlineCount">0</strong><small>online</small></article></div>
         <h3>Gerenciar familiares</h3><div id="permissionsTable" class="permissions-table"></div>
         <h3>Alertas recentes</h3><div id="alertsList" class="alerts-list"></div>
