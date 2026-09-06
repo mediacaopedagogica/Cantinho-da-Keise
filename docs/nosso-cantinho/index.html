@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#cdb8ff">
-  <meta name="description" content="Nosso Cantinho — chat privado da família">
-  <title>Nosso Cantinho 💕</title>
+  <meta name="description" content="Cantinho da Isa — chat privado da família">
+  <title>Cantinho da Isa 💕</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
@@ -16,8 +16,8 @@
   <section id="loginView" class="screen center-screen">
     <div class="login-card glass">
       <div class="brand-bubble">🏡💕</div>
-      <h1>Nosso Cantinho</h1>
-      <p class="muted">Um espaço só da família.</p>
+      <h1>Cantinho da Isa</h1>
+      <p class="muted">Um cantinho para estar pertinho da família.</p>
       <label>Login</label>
       <input id="loginUsername" autocomplete="username" placeholder="Ex.: Mãe">
       <label>Senha</label>
@@ -31,9 +31,9 @@
     </div>
   </section>
 
-  <section id="setupView" class="screen center-screen hidden">
+  <section id="setupView" class="screen center-screen hidden" aria-hidden="true">
     <div class="setup-card glass">
-      <div class="setup-head"><div><h2>Ativar a família 🌷</h2><p class="muted">Essa etapa é feita uma única vez.</p></div><button id="closeSetupBtn" class="icon-btn">✕</button></div>
+      <div class="setup-head"><div><h2>Ativar a família 🌷</h2><p class="muted">Essa etapa já foi concluída.</p></div><button id="closeSetupBtn" class="icon-btn">✕</button></div>
       <label>Código de ativação</label>
       <input id="setupCode" type="password" placeholder="Código de ativação">
       <div id="setupAccounts" class="setup-grid"></div>
@@ -64,9 +64,9 @@
 
     <main class="content glass">
       <section id="birthdayHero" class="birthday-hero hidden" aria-live="polite"></section>
-      <section id="notifyBanner" class="notify-banner hidden"><div>🔔 <strong>Ative as notificações</strong><small>Isa, Mãe e Pai podem receber alertas mesmo fora desta tela.</small></div><button id="enableNotificationsBtn" class="soft-btn">Ativar</button></section>
+      <section id="notifyBanner" class="notify-banner hidden"><div>🔔 <strong>Ative as notificações</strong><small>Isa, Keise e Alan podem receber alertas de novas mensagens.</small></div><button id="enableNotificationsBtn" class="soft-btn">Ativar</button></section>
 
-      <section id="emptyState" class="empty-state"><div class="big-emoji">🏡</div><h2>Bem-vinda ao Nosso Cantinho</h2><p>Escolha uma conversa ou crie um grupo.</p></section>
+      <section id="emptyState" class="empty-state"><div class="big-emoji">🏡</div><h2>Bem-vinda ao Cantinho da Isa</h2><p>Escolha uma conversa ou crie um grupo.</p></section>
 
       <section id="chatPanel" class="chat-panel hidden">
         <header class="chat-header">
@@ -128,12 +128,12 @@
 
       <section id="supervisionPanel" class="panel-pad hidden">
         <div class="panel-title supervision-title"><div><h2>Supervisão da Isa 👀💜</h2><p class="muted">Acompanhe de forma transparente as conversas que envolvem a Isa.</p></div></div>
-        <div class="supervision-info">🛡️ <div><strong>Conta supervisionada</strong><p>Aqui aparecem somente conversas em que a Isa participa. Conversas entre adultos continuam privadas.</p></div></div>
+        <div class="supervision-info">🛡️ <div><strong>Conta supervisionada</strong><p>Aqui aparecem somente as conversas da Isa permitidas para esta conta. Conversas entre adultos continuam privadas.</p></div></div>
         <div id="supervisionList" class="supervision-list"></div>
       </section>
 
       <section id="parentsPanel" class="panel-pad hidden">
-        <div class="panel-title"><div><h2>Central Super Pais 🛡️</h2><p class="muted">Acessos, permissões e configurações da família.</p></div><button id="newMemberBtn" class="soft-btn">＋ Familiar</button></div>
+        <div class="panel-title"><div><h2>Central Super Pais 🛡️</h2><p class="muted">Acessos, permissões e configurações do Cantinho da Isa.</p></div><button id="newMemberBtn" class="soft-btn">＋ Familiar</button></div>
         <div class="parent-cards"><article class="parent-stat"><span>🔔</span><strong id="alertCount">0</strong><small>alertas</small></article><article class="parent-stat"><span>👥</span><strong id="memberCount">0</strong><small>familiares</small></article><article class="parent-stat"><span>🟢</span><strong id="onlineCount">0</strong><small>online</small></article></div>
         <h3>Gerenciar familiares</h3><div id="permissionsTable" class="permissions-table"></div>
         <h3>Alertas recentes</h3><div id="alertsList" class="alerts-list"></div>
