@@ -1,4 +1,4 @@
-let activeSupervisionMode=false
+var activeSupervisionMode=false
 
 function conversationHasChild(conv){
   const child=family.find(x=>x.role==='child');
