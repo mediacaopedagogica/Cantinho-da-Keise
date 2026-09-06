@@ -9,6 +9,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="theme-3d.css">
 </head>
 <body>
 <div id="app">
@@ -44,13 +45,16 @@
   <section id="mainView" class="screen app-shell hidden">
     <aside class="sidebar glass">
       <div class="profile-mini">
-        <div id="myAvatar" class="avatar pastel-avatar">🙂</div>
+        <button id="myAvatarBtn" class="avatar pastel-avatar profile-avatar-btn" type="button" title="Alterar foto de perfil" aria-label="Alterar foto de perfil">
+          <span id="myAvatar">🙂</span><span class="avatar-camera">📷</span>
+        </button>
+        <input id="profileAvatarInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
         <div class="grow"><small class="muted">Você está como</small><strong id="myName">Família</strong><small id="myRole">online</small></div>
         <button id="logoutBtn" class="tiny-btn profile-exit-btn" title="Sair da conta">Sair</button>
       </div>
       <nav class="nav-tabs">
         <button class="nav-btn active" data-tab="chats">💬 <span>Conversas</span></button>
-        <button class="nav-btn" data-tab="calendar">🎂 <span>Calendário</span></button>
+        <button class="nav-btn" data-tab="calendar">📅 <span>Calendário</span></button>
         <button class="nav-btn hidden" data-tab="supervision" id="supervisionNav">👀 <span>Supervisão</span></button>
         <button class="nav-btn" data-tab="parents" id="parentsNav">🛡️ <span>Super Pais</span></button>
       </nav>
@@ -99,9 +103,27 @@
 
       <section id="familyPanel" class="panel-pad hidden"><div id="familyGrid" class="family-grid"></div></section>
 
-      <section id="calendarPanel" class="panel-pad hidden">
-        <div class="panel-title"><div><h2>Calendário da Família 🎂</h2><p class="muted">Aniversários e momentos importantes.</p></div><button id="newEventBtn" class="soft-btn">＋ Evento</button></div>
-        <div id="birthdayStrip" class="birthday-strip"></div><div id="calendarList" class="calendar-list"></div>
+      <section id="calendarPanel" class="panel-pad hidden calendar-panel">
+        <div class="panel-title calendar-panel-title">
+          <div><h2>Meu Calendário 📅</h2><p class="muted">Seus eventos e os eventos que compartilharam com você.</p></div>
+          <button id="newEventBtn" class="soft-btn">＋ Evento</button>
+        </div>
+        <div id="birthdayStrip" class="birthday-strip hidden"></div>
+        <div class="calendar-shell-3d">
+          <div class="calendar-toolbar">
+            <button id="calendarPrevBtn" class="calendar-round-btn" type="button">‹</button>
+            <div class="calendar-selects">
+              <select id="calendarMonthSelect" aria-label="Mês"></select>
+              <select id="calendarYearSelect" aria-label="Ano"></select>
+            </div>
+            <button id="calendarTodayBtn" class="calendar-today-btn" type="button">Hoje</button>
+            <button id="calendarNextBtn" class="calendar-round-btn" type="button">›</button>
+          </div>
+          <div class="calendar-weekdays" aria-hidden="true"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
+          <div id="calendarGrid" class="calendar-grid-real"></div>
+        </div>
+        <div id="calendarDayDetails" class="calendar-day-details"></div>
+        <div id="calendarList" class="calendar-list hidden"></div>
       </section>
 
       <section id="supervisionPanel" class="panel-pad hidden">
