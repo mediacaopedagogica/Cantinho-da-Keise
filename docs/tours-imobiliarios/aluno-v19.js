@@ -3,6 +3,7 @@ if(__bg64){document.documentElement.style.setProperty('--office-bg',`url("data:i
 
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/+esm";
 const supabase=createClient("https://stsetmvuacvogbcolouo.supabase.co","sb_publishable_wrULbAYnACY62_ziencB5w_nfRqPoox");
+import { preserveCommentView, createRefreshQueue, addManualRefresh } from "./comments-manual-v30.js";
 const ACTIVITY_KEY="mercado-imobiliario-tours-utd-2025";
 
 const PAPER_DATA = {
@@ -115,15 +116,19 @@ function updateRatingUI(){
 }
 studentName.addEventListener("input",updateRatingUI);
 
-async function refreshComments(openIds=null){
-  const open=openIds||new Set([...document.querySelectorAll(".thread[open]")].map(d=>d.dataset.id));
+let commentsSignature = '';
+const refreshComments = createRefreshQueue(async () => {
   const [c,r]=await Promise.all([
     supabase.from("forum_comments").select("*").eq("activity_key",ACTIVITY_KEY).order("created_at",{ascending:true}),
     supabase.from("forum_ratings").select("*").eq("activity_key",ACTIVITY_KEY)
   ]);
-  if(c.error||r.error){showToast("Não foi possível atualizar os comentários agora.");return}
-  comments=c.data||[];ratings=r.data||[];renderComments(open);updateRatingUI();
-}
+  if(c.error||r.error)throw new Error('Comentários indisponíveis');
+  comments=c.data||[];ratings=r.data||[];
+  const signature=JSON.stringify([comments,ratings]);
+  if(signature!==commentsSignature){preserveCommentView(commentList,renderComments);commentsSignature=signature;}
+  updateRatingUI();
+},()=>showToast("Não foi possível atualizar agora. Seu texto foi mantido."));
+
 function buildTree(){
   const map=new Map(comments.map(c=>[c.id,{...c,children:[]}])),roots=[];
   map.forEach(c=>{if(c.parent_id&&map.has(c.parent_id))map.get(c.parent_id).children.push(c);else roots.push(c)});
@@ -155,6 +160,8 @@ function bindReplies(){
     const rated=hasRated(name);if(!rated&&!replyRatings[id]){showToast("Na primeira participação, marque de 1 a 5 estrelas.");return}
     const q=await supabase.rpc("submit_student_comment",{p_activity_key:ACTIVITY_KEY,p_parent_id:id,p_author_name:name,p_body:body,p_stars:rated?null:replyRatings[id]});
     if(q.error){showToast(q.error.message||"Não foi possível publicar.");return}
+    const input=document.getElementById("rb_"+id);
+    if(input.value.trim()===body)input.value="";
     await refreshComments();showToast("Resposta publicada.");
   });
 }
@@ -176,5 +183,6 @@ mainForm.addEventListener("submit",async e=>{
 document.getElementById("expandAll").onclick=()=>document.querySelectorAll(".thread").forEach(d=>d.open=true);
 document.getElementById("collapseAll").onclick=()=>document.querySelectorAll(".thread").forEach(d=>d.open=false);
 updateProgress();
+addManualRefresh(document.querySelector('.comment-actions-top'),refreshComments,'tool');
 await refreshComments();
-setInterval(()=>refreshComments(),4000);
+// A pessoa abre, fecha e atualiza os comentários manualmente. Sem temporizador.
