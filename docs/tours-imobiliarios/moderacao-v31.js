@@ -17,7 +17,7 @@ export function installModeration({client,activity,getPassword,getComments,refre
  .mod-preview{padding:12px 14px;border-radius:12px;background:#edf2ee;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
  .mod-confirm-label{display:block;margin-top:18px;font-size:13px;font-weight:700}.mod-confirm-input{box-sizing:border-box;width:100%;padding:11px;border:1px solid #b5c6bb;border-radius:10px;margin-top:7px;font-size:16px}
  .mod-dialog-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin-top:20px}.mod-error{color:#a51d2d;font-size:13px;line-height:1.5;margin-top:12px}
- .mod-dialog button:focus-visible,.mod-confirm-input:focus-visible,.mod-button:focus-visible{outline:3px solid #24583c;outline-offset:3px}
+ .mod-edit-text{box-sizing:border-box;width:100%;min-height:150px;padding:12px;border:1px solid #b5c6bb;border-radius:12px;margin-top:10px;font:inherit;line-height:1.55;resize:vertical}.mod-dialog button:focus-visible,.mod-confirm-input:focus-visible,.mod-edit-text:focus-visible,.mod-button:focus-visible{outline:3px solid #24583c;outline-offset:3px}
  @media(max-width:500px){.mod-dialog{padding:20px}.mod-actions button{flex:1}.mod-dialog-actions button{flex:1}.moderation-info{font-size:12px}}
  `;
  document.head.append(style);
@@ -46,6 +46,7 @@ export function installModeration({client,activity,getPassword,getComments,refre
    const toggle=make('button',c.is_hidden?'Mostrar novamente':'Ocultar dos alunos','mod-button');toggle.type='button';
    toggle.dataset.modAction=c.is_hidden?'show':'hide';toggle.dataset.modId=c.id;
    if(!c.is_hidden&&c.is_visible===false){toggle.disabled=true;toggle.textContent='Conversa de origem oculta';}
+   if(c.author_role==='mediator'){const edit=make('button','Editar meu comentário','mod-button');edit.type='button';edit.dataset.modAction='edit';edit.dataset.modId=c.id;actions.append(edit);}
    const del=make('button','Excluir comentário','mod-button danger');del.type='button';del.dataset.modAction='delete';del.dataset.modId=c.id;
    actions.append(toggle,del);
   });
@@ -53,11 +54,15 @@ export function installModeration({client,activity,getPassword,getComments,refre
  function confirmAction(c,action,opener){
   if(busy)return;
   const count=subtreeSize(c.id),replies=count-1;
-  const isDelete=action==='delete';dialog.replaceChildren();
-  const title=make('h2',isDelete?'Excluir este comentário?':action==='hide'?'Ocultar dos alunos?':'Mostrar novamente?');title.id='moderationTitle';dialog.append(title);
-  dialog.append(make('p',`Autor: ${c.author_name}`),make('div',c.body.length>220?c.body.slice(0,220)+'…':c.body,'mod-preview'));
+  const isDelete=action==='delete',isEdit=action==='edit';dialog.replaceChildren();
+  const title=make('h2',isDelete?'Excluir este comentário?':isEdit?'Editar comentário da mediação?':action==='hide'?'Ocultar dos alunos?':'Mostrar novamente?');title.id='moderationTitle';dialog.append(title);
+  dialog.append(make('p',`Autor: ${c.author_name}`));
+  let editArea=null;
+  if(isEdit){editArea=make('textarea',undefined,'mod-edit-text');editArea.value=c.body;editArea.maxLength=1800;editArea.setAttribute('aria-label','Texto do comentário da mediação');dialog.append(editArea);}
+  else dialog.append(make('div',c.body.length>220?c.body.slice(0,220)+'…':c.body,'mod-preview'));
   let description;
   if(isDelete)description=(replies?`Serão apagados este comentário e ${replies} resposta${replies===1?'':'s'} vinculada${replies===1?'':'s'}.`:'Este comentário será apagado.')+' A exclusão é permanente, inclusive neste painel. As estrelas de avaliação não serão apagadas.';
+  else if(isEdit)description='A alteração será aplicada somente ao comentário da Mediação Pedagógica. O texto do aluno nunca é editado pelo painel.';
   else if(action==='hide')description=(replies?'O comentário e suas respostas deixarão':'O comentário deixará')+' de aparecer para os alunos após a próxima atualização da lista. Você continuará vendo tudo aqui e poderá mostrar novamente depois.';
   else description='A restrição individual será removida. Respostas ocultadas separadamente continuarão ocultas. Se a conversa de origem estiver oculta, este comentário também permanecerá fora da visão dos alunos.';
   dialog.append(make('p',description));
@@ -66,7 +71,7 @@ export function installModeration({client,activity,getPassword,getComments,refre
   const error=make('div','', 'mod-error');error.setAttribute('role','alert');dialog.append(error);
   const actions=make('div',undefined,'mod-dialog-actions');
   const cancel=make('button','Cancelar','mod-button');cancel.type='button';
-  const submit=make('button',isDelete?'Excluir definitivamente':action==='hide'?'Ocultar dos alunos':'Mostrar novamente','mod-button'+(isDelete?' danger':''));submit.type='button';submit.disabled=isDelete;
+  const submit=make('button',isDelete?'Excluir definitivamente':isEdit?'Salvar alteração':action==='hide'?'Ocultar dos alunos':'Mostrar novamente','mod-button'+(isDelete?' danger':''));submit.type='button';submit.disabled=isDelete;
   actions.append(cancel,submit);dialog.append(actions);
   input?.addEventListener('input',()=>submit.disabled=busy||input.value!=='EXCLUIR');
   cancel.onclick=()=>dialog.close();
@@ -74,17 +79,19 @@ export function installModeration({client,activity,getPassword,getComments,refre
   dialog.onclose=()=>{if(opener?.isConnected)opener.focus({preventScroll:true});else document.querySelector('.manual-refresh')?.focus({preventScroll:true});};
   submit.onclick=async()=>{
    if(busy||isDelete&&input.value!=='EXCLUIR')return;
+   if(isEdit&&(!editArea||editArea.value.trim().length<2)){error.textContent='Escreva pelo menos 2 caracteres.';editArea?.focus();return;}
    busy=true;submit.disabled=true;cancel.disabled=true;if(input)input.disabled=true;error.textContent='';submit.setAttribute('aria-busy','true');
    try{
-    const {data,error:failure}=await client.rpc('moderate_forum_comment',{p_activity_key:activity,p_comment_id:c.id,p_action:action,p_password:getPassword(),p_confirmation:input?.value||null,p_expected_count:count});
+    const request=isEdit?client.rpc('edit_mediator_forum_comment',{p_activity_key:activity,p_comment_id:c.id,p_body:editArea.value.trim(),p_password:getPassword()}):client.rpc('moderate_forum_comment',{p_activity_key:activity,p_comment_id:c.id,p_action:action,p_password:getPassword(),p_confirmation:input?.value||null,p_expected_count:count});
+    const {data,error:failure}=await request;
     if(failure)throw new Error(failure.message||'Não foi possível concluir a ação.');
     if(data?.ok!==true)throw new Error('O servidor não confirmou a alteração.');
     await refresh();decorate();dialog.close();
-    notify(isDelete?'Comentário excluído.':action==='hide'?'Comentário oculto para os alunos.':data.is_visible===false?'Restrição individual removida. A conversa de origem permanece oculta.':'Comentário visível para os alunos.');
+    notify(isDelete?'Comentário excluído.':isEdit?'Comentário da mediação atualizado.':action==='hide'?'Comentário oculto para os alunos.':data.is_visible===false?'Restrição individual removida. A conversa de origem permanece oculta.':'Comentário visível para os alunos.');
    }catch(e){error.textContent=e.message||'Não foi possível concluir. Nenhuma confirmação foi recebida.';}
    finally{busy=false;submit.disabled=!!input&&input.value!=='EXCLUIR';cancel.disabled=false;if(input)input.disabled=false;submit.removeAttribute('aria-busy');}
   };
-  dialog.showModal();(input||cancel).focus();
+  dialog.showModal();(editArea||input||cancel).focus();
  }
  root.addEventListener('click',event=>{const b=event.target.closest('[data-mod-action]');if(!b||b.disabled)return;event.preventDefault();event.stopPropagation();const c=getComments().find(x=>x.id===b.dataset.modId);if(c)confirmAction(c,b.dataset.modAction,b);});
  new MutationObserver(decorate).observe(root,{childList:true});
