@@ -43,7 +43,7 @@ button,input,textarea{font:inherit} .top{position:sticky;top:0;z-index:20;backgr
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/+esm";
 const supabase=createClient("https://stsetmvuacvogbcolouo.supabase.co","sb_publishable_wrULbAYnACY62_ziencB5w_nfRqPoox");
 import { preserveCommentView, createRefreshQueue, addManualRefresh } from "./comments-manual-v30.js";
-import { installModeration } from "./moderacao-v31.js";
+import { installModeration } from "./moderacao-v31.js?v=32";
 const ACTIVITY_KEY="mercado-imobiliario-tours-utd-2025";
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 let pass=sessionStorage.getItem("mediator_pass")||"",comments=[],ratings=[];
