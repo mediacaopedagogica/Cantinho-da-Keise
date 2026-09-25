@@ -42,6 +42,7 @@ button,input,textarea{font:inherit} .top{position:sticky;top:0;z-index:20;backgr
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/+esm";
 const supabase=createClient("https://stsetmvuacvogbcolouo.supabase.co","sb_publishable_wrULbAYnACY62_ziencB5w_nfRqPoox");
+import { preserveCommentView, createRefreshQueue, addManualRefresh } from "./comments-manual-v30.js";
 const ACTIVITY_KEY="mercado-imobiliario-tours-utd-2025";
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 let pass=sessionStorage.getItem("mediator_pass")||"",comments=[],ratings=[];
@@ -52,20 +53,23 @@ function rating(c){return ratings.find(r=>r.normalized_name===c.normalized_name)
 function first(c){return c.author_role==="student"&&comments.filter(x=>x.author_role==="student"&&x.normalized_name===c.normalized_name).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at))[0]?.id===c.id}
 async function verify(p){const q=await supabase.rpc("verify_mediator_password",{p_password:p});return !q.error&&q.data===true}
 async function unlock(p){if(!(await verify(p))){toast("Senha não autorizada.");return false}pass=p;sessionStorage.setItem("mediator_pass",p);$("#login").classList.add("hidden");$("#app").classList.add("open");await refresh();return true}
-$("#loginForm").onsubmit=async e=>{e.preventDefault();await unlock($("#password").value)};$("#logout").onclick=()=>{sessionStorage.removeItem("mediator_pass");location.reload()};if(pass)unlock(pass);
-async function refresh(){
+$("#loginForm").onsubmit=async e=>{e.preventDefault();await unlock($("#password").value)};$("#logout").onclick=()=>{sessionStorage.removeItem("mediator_pass");location.reload()};
+let commentsSignature = '';
+const refresh = createRefreshQueue(async () => {
  if(!pass)return;
- const open=new Set($$(".thread[open]").map(d=>d.dataset.id));
  const [c,r]=await Promise.all([supabase.from("forum_comments").select("*").eq("activity_key",ACTIVITY_KEY).order("created_at",{ascending:true}),supabase.from("forum_ratings").select("*").eq("activity_key",ACTIVITY_KEY)]);
- if(c.error||r.error){$("#list").innerHTML='<div class="empty">Não foi possível carregar os comentários agora.</div>';return}
- comments=c.data||[];ratings=r.data||[];render(open);
-}
+ if(c.error||r.error)throw new Error('Comentários indisponíveis');
+ comments=c.data||[];ratings=r.data||[];
+ const signature=JSON.stringify([comments,ratings]);
+ if(signature!==commentsSignature){preserveCommentView($("#list"),render);commentsSignature=signature;}
+},()=>toast("Não foi possível atualizar agora. Seu texto foi mantido."));
+
 function tree(){const m=new Map(comments.map(c=>[c.id,{...c,children:[]}])),roots=[];m.forEach(c=>{if(c.parent_id&&m.has(c.parent_id))m.get(c.parent_id).children.push(c);else roots.push(c)});return roots.reverse()}
 const desc=c=>c.children.reduce((n,x)=>n+1+desc(x),0);
 function rform(parent){
  const f=document.createElement("form");f.className="rform";f.innerHTML='<textarea maxlength="1800" placeholder="Responder como Mediadora Pedagógica..."></textarea><div class="racts"><button type="button" class="cancel">Cancelar</button><button type="submit" class="send">Publicar resposta</button></div>';
  $(".cancel",f).onclick=()=>f.classList.remove("open");
- f.onsubmit=async e=>{e.preventDefault();const body=$("textarea",f).value.trim();if(body.length<2){toast("Escreva sua resposta.");return}const q=await supabase.rpc("submit_mediator_comment_with_password",{p_activity_key:ACTIVITY_KEY,p_parent_id:parent.id,p_body:body,p_password:pass});if(q.error){toast(q.error.message||"Não foi possível publicar.");return}$("textarea",f).value="";f.classList.remove("open");await refresh();toast("Comentário publicado como Mediadora Pedagógica.")};
+ f.onsubmit=async e=>{e.preventDefault();const body=$("textarea",f).value.trim();if(body.length<2){toast("Escreva sua resposta.");return}const q=await supabase.rpc("submit_mediator_comment_with_password",{p_activity_key:ACTIVITY_KEY,p_parent_id:parent.id,p_body:body,p_password:pass});if(q.error){toast(q.error.message||"Não foi possível publicar.");return}if($("textarea",f).value.trim()===body)$("textarea",f).value="";await refresh();toast("Comentário publicado como Mediadora Pedagógica.")};
  return f;
 }
 function node(c,open){
@@ -81,6 +85,8 @@ function node(c,open){
 function render(open=new Set()){$("#total").textContent=comments.length;const l=$("#list");l.innerHTML="";if(!comments.length){l.innerHTML='<div class="empty">Ainda não há comentários na dinâmica.</div>';return}tree().forEach(c=>l.appendChild(node(c,open)))}
 $("#expand").onclick=()=>$$(".thread").forEach(d=>d.open=true);$("#collapse").onclick=()=>$$(".thread").forEach(d=>d.open=false);
 $("#generalForm").onsubmit=async e=>{e.preventDefault();const body=$("#generalText").value.trim();if(body.length<2){toast("Escreva sua orientação.");return}const q=await supabase.rpc("submit_mediator_comment_with_password",{p_activity_key:ACTIVITY_KEY,p_parent_id:null,p_body:body,p_password:pass});if(q.error){toast(q.error.message||"Não foi possível publicar.");return}$("#generalText").value="";await refresh();toast("Orientação publicada como Mediadora Pedagógica.")};
-setInterval(()=>{if(pass)refresh()},4000);
+addManualRefresh($(".toolbar .actions"),refresh,'ghost');
+if(pass)unlock(pass);
+// A pessoa abre, fecha e atualiza os comentários manualmente. Sem temporizador.
 </script>
 </body></html>
