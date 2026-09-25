@@ -43,6 +43,7 @@ button,input,textarea{font:inherit} .top{position:sticky;top:0;z-index:20;backgr
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/+esm";
 const supabase=createClient("https://stsetmvuacvogbcolouo.supabase.co","sb_publishable_wrULbAYnACY62_ziencB5w_nfRqPoox");
 import { preserveCommentView, createRefreshQueue, addManualRefresh } from "./comments-manual-v30.js";
+import { installModeration } from "./moderacao-v31.js";
 const ACTIVITY_KEY="mercado-imobiliario-tours-utd-2025";
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 let pass=sessionStorage.getItem("mediator_pass")||"",comments=[],ratings=[];
@@ -57,9 +58,9 @@ $("#loginForm").onsubmit=async e=>{e.preventDefault();await unlock($("#password"
 let commentsSignature = '';
 const refresh = createRefreshQueue(async () => {
  if(!pass)return;
- const [c,r]=await Promise.all([supabase.from("forum_comments").select("*").eq("activity_key",ACTIVITY_KEY).order("created_at",{ascending:true}),supabase.from("forum_ratings").select("*").eq("activity_key",ACTIVITY_KEY)]);
- if(c.error||r.error)throw new Error('Comentários indisponíveis');
- comments=c.data||[];ratings=r.data||[];
+ const response=await supabase.rpc("list_mediator_forum",{p_activity_key:ACTIVITY_KEY,p_password:pass});
+ if(response.error)throw new Error(response.error.message||"Comentários indisponíveis");
+ comments=response.data?.comments||[];ratings=response.data?.ratings||[];
  const signature=JSON.stringify([comments,ratings]);
  if(signature!==commentsSignature){preserveCommentView($("#list"),render);commentsSignature=signature;}
 },()=>toast("Não foi possível atualizar agora. Seu texto foi mantido."));
@@ -86,6 +87,7 @@ function render(open=new Set()){$("#total").textContent=comments.length;const l=
 $("#expand").onclick=()=>$$(".thread").forEach(d=>d.open=true);$("#collapse").onclick=()=>$$(".thread").forEach(d=>d.open=false);
 $("#generalForm").onsubmit=async e=>{e.preventDefault();const body=$("#generalText").value.trim();if(body.length<2){toast("Escreva sua orientação.");return}const q=await supabase.rpc("submit_mediator_comment_with_password",{p_activity_key:ACTIVITY_KEY,p_parent_id:null,p_body:body,p_password:pass});if(q.error){toast(q.error.message||"Não foi possível publicar.");return}$("#generalText").value="";await refresh();toast("Orientação publicada como Mediadora Pedagógica.")};
 addManualRefresh($(".toolbar .actions"),refresh,'ghost');
+installModeration({client:supabase,activity:ACTIVITY_KEY,getPassword:()=>pass,getComments:()=>comments,refresh,notify:toast});
 if(pass)unlock(pass);
 // A pessoa abre, fecha e atualiza os comentários manualmente. Sem temporizador.
 </script>
