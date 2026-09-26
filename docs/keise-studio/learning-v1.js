@@ -318,12 +318,31 @@ function bindProperties(){
   const add=$('#propAddCheckpoint',root);
   if(add)add.onclick=()=>{e.checkpoints.push({id:uid('cp'),at:30,question:'Qual alternativa explica melhor o trecho que você acabou de assistir?',options:['Alternativa A','Alternativa B','Alternativa C','Alternativa D'],correct:0,feedbackRight:'Muito bem!',feedbackWrong:'Revise este trecho e tente novamente.',correctTargetSlideId:'',wrongTargetSlideId:''});touch();render()};
   $$('[data-cp-delete]',root).forEach(n=>n.onclick=()=>{e.checkpoints=e.checkpoints.filter(cp=>cp.id!==n.dataset.cpDelete);touch();render()});
-  $$('[data-cp-field]',root).forEach(n=>{
-   const apply=()=>{const cp=e.checkpoints.find(x=>x.id===n.dataset.cpId);if(!cp)return;const key=n.dataset.cpField;cp[key]=key==='at'||key==='correct'?Number(n.value):n.value;touch();renderCanvasLight()};
-   n.oninput=apply;n.onchange=apply;
-  });
+  $$('[data-cp-field]',root).forEach(n=>{const apply=()=>{const cp=e.checkpoints.find(x=>x.id===n.dataset.cpId);if(!cp)return;const key=n.dataset.cpField;cp[key]=key==='at'||key==='correct'?Number(n.value):n.value;touch();renderCanvasLight()};n.oninput=apply;n.onchange=apply});
   $$('[data-cp-option]',root).forEach(n=>n.oninput=()=>{const cp=e.checkpoints.find(x=>x.id===n.dataset.cpId);if(!cp)return;cp.options[Number(n.dataset.cpOption)]=n.value;touch()});
  }
+ if(e.type==='image'){
+  bind('#propImageSrc','src');bind('#propImageAlt','alt');bind('#propImageCaption','caption');
+  const choose=$('#propChooseImage',root),file=$('#propImageFile',root);if(choose&&file){choose.onclick=()=>file.click();file.onchange=async ev=>{const picked=ev.target.files?.[0];if(!picked)return;const assetId=uid('img');await putLearnMedia(assetId,picked);e.assetId=assetId;touch();render();toast('Imagem adicionada.')}};
+ }
+ if(e.type==='popup'){bind('#propPopupLabel','label');bind('#propPopupTitle','title');bind('#propPopupContent','content')}
+ if(e.type==='tabs'){
+  $$('[data-tab-title]',root).forEach(n=>n.oninput=()=>{e.items[Number(n.dataset.tabTitle)].title=n.value;touch();renderCanvasLight()});
+  $$('[data-tab-content]',root).forEach(n=>n.oninput=()=>{e.items[Number(n.dataset.tabContent)].content=n.value;touch();renderCanvasLight()});
+ }
+ if(e.type==='hotspot'){
+  bind('#propHotspotSrc','src');bind('#propHotspotAlt','alt');
+  const choose=$('#propChooseHotspotImage',root),file=$('#propHotspotImageFile',root);if(choose&&file){choose.onclick=()=>file.click();file.onchange=async ev=>{const picked=ev.target.files?.[0];if(!picked)return;const assetId=uid('img');await putLearnMedia(assetId,picked);e.assetId=assetId;touch();render();toast('Cenário adicionado.')}};
+  $('#propAddHotspot',root)?.addEventListener('click',()=>{e.hotspots.push({id:uid('hot'),x:50,y:50,label:'Explorar',action:'popup',content:'Conteúdo deste ponto.',targetSlideId:'',effect:'confetti',url:''});touch();render()});
+  $$('[data-hot-delete]',root).forEach(n=>n.onclick=()=>{e.hotspots=e.hotspots.filter(h=>h.id!==n.dataset.hotDelete);touch();render()});
+  $$('[data-hot-field]',root).forEach(n=>{const apply=()=>{const h=e.hotspots.find(x=>x.id===n.dataset.hotId);if(!h)return;h[n.dataset.hotField]=['x','y'].includes(n.dataset.hotField)?Number(n.value):n.value;touch();renderCanvasLight()};n.oninput=apply;n.onchange=apply});
+ }
+ if(e.type==='path'){bind('#propPathTitle','title');bind('#propPathSteps','stepsText')}
+ if(e.type==='meeting'){bind('#propMeetingTitle','title');bind('#propMeetingUrl','url');bind('#propMeetingNote','note');const n=$('#propMeetingProvider',root);if(n)n.onchange=()=>{e.provider=n.value;touch();renderCanvasLight()}}
+ if(e.type==='escape'){bind('#propEscapePrompt','prompt');bind('#propEscapeAnswer','answer');bind('#propEscapeHint','hint');bind('#propEscapeSuccess','success');const t=$('#propEscapeTarget',root);if(t)t.onchange=()=>{e.targetSlideId=t.value;touch()};const fx=$('#propEscapeEffect',root);if(fx)fx.onchange=()=>{e.effect=fx.value;touch()}}
+ if(e.type==='bingo'){bind('#propBingoTitle','title');bind('#propBingoItems','itemsText');const g=$('#propBingoGrid',root);if(g)g.onchange=()=>{e.grid=Number(g.value);touch();renderCanvasLight()}}
+ if(e.type==='raffle'){bind('#propRaffleTitle','title');bind('#propRaffleItems','itemsText')}
+ if(e.type==='effect'){bind('#propEffectLabel','label');const fx=$('#propEffectType',root);if(fx)fx.onchange=()=>{e.effect=fx.value;touch();renderCanvasLight()}}
 }
 function renderCanvasLight(){
  const s=slide(),stage=$('.learn-slide-stage',root);if(!s||!stage)return;
