@@ -799,6 +799,8 @@ function advancedRuntimeMarkup(e,p){
  if(e.type==='bingo'){const items=splitLines(e.itemsText),count=Math.min(items.length,Number(e.grid||3)**2);return `<div class="runtime-bingo" data-grid="${Number(e.grid)||3}"><h3>🎯 ${esc(e.title||'Bingo')}</h3><div class="bingo-grid" style="--grid:${Number(e.grid)||3}">${items.slice(0,count).map((x,i)=>`<button type="button" data-bingo-cell="${i}">${esc(x)}</button>`).join('')}</div><div class="bingo-actions"><button class="soft bingo-draw" type="button">🎲 Sortear um item</button><button class="soft bingo-reset" type="button">↺ Limpar</button></div><p class="bingo-result"></p></div>`;}
  if(e.type==='raffle')return `<div class="runtime-raffle" data-items="${esc(JSON.stringify(splitLines(e.itemsText)))}"><span>🎲</span><h3>${esc(e.title||'Sorteio')}</h3><div class="raffle-result">Pronto para sortear</div><button class="primary raffle-run" type="button">Sortear</button></div>`;
  if(e.type==='effect')return `<button class="runtime-effect-button" type="button" data-effect="${esc(e.effect||'confetti')}">✨ ${esc(e.label||'Comemorar')}</button>`;
+ if(e.type==='dice')return `<div class="runtime-dice theme-${esc(e.diceTheme||'classic')}" data-dice-id="${esc(e.id)}" data-sides="${Number(e.sides)||6}" data-count="${Number(e.diceCount)||1}"><div class="dice-stage">${e.showHand!==false?'<div class="dice-throw-hand">🤲</div>':''}<div class="dice-set">${Array.from({length:Number(e.diceCount)||1},(_,i)=>`<div class="dice-3d" data-die-index="${i}"><span>1</span></div>`).join('')}</div></div><button class="primary dice-roll" type="button">${esc(e.buttonLabel||'Lançar dado')}</button><p class="dice-result" role="status"></p></div>`;
+ if(e.type==='tv'){const first=e.channels?.[0]||{};return `<div class="runtime-tv theme-${esc(e.tvTheme||'modern')}" data-tv-id="${esc(e.id)}"><div class="tv-frame"><div class="tv-screen runtime-tv-screen"><div class="tv-static">📺<small>Escolha um canal</small></div></div><div class="tv-brand">${esc(e.title||'TV Interativa')}</div><div class="tv-stand"></div></div><div class="tv-control"><div class="remote-top"><button type="button" data-tv-power>⏻</button><span>CONTROLE</span></div><div class="remote-channel"><button type="button" data-tv-prev>CH −</button><strong data-tv-channel-label>${esc(first.number||'1')}</strong><button type="button" data-tv-next>CH ＋</button></div><div class="remote-media"><button type="button" data-tv-back>↺ 10s</button><button type="button" data-tv-play>▶</button><button type="button" data-tv-pause>⏸</button><button type="button" data-tv-forward>10s ↻</button></div><div class="remote-numbers">${Array.from({length:9},(_,i)=>`<button type="button" data-tv-number="${i+1}">${i+1}</button>`).join('')}</div></div><div class="tv-program-info"><b data-tv-title>${esc(first.title||'Canal 1')}</b><small data-tv-time></small><button class="soft tv-question" type="button" data-tv-question>💬 Perguntar sobre este canal</button><div class="tv-question-box" hidden><textarea placeholder="O que não ficou claro neste trecho?"></textarea><button class="primary" type="button" data-tv-send>Enviar dúvida</button><p data-tv-status></p></div></div></div>`;
  return '';
 }
 function wireAdvancedRuntime(p,s,dialog,runtime){
@@ -811,6 +813,69 @@ function wireAdvancedRuntime(p,s,dialog,runtime){
  $('.runtime-bingo',dialog).forEach(box=>{const cells=$('[data-bingo-cell]',box),result=$('.bingo-result',box);cells.forEach(b=>b.onclick=()=>b.classList.toggle('marked'));$('.bingo-draw',box).onclick=()=>{const available=cells.filter(x=>!x.classList.contains('marked'));if(!available.length){result.textContent='Todos os itens já foram marcados.';return}const pick=available[Math.floor(Math.random()*available.length)];pick.classList.add('marked');result.textContent='Saiu: '+pick.textContent;launchRuntimeEffect('stars',dialog)};$('.bingo-reset',box).onclick=()=>{cells.forEach(x=>x.classList.remove('marked'));result.textContent=''}});
  $('.runtime-raffle',dialog).forEach(box=>{$('.raffle-run',box).onclick=()=>{let items=[];try{items=JSON.parse(box.dataset.items||'[]')}catch{};if(!items.length)return;const pick=items[Math.floor(Math.random()*items.length)];$('.raffle-result',box).textContent=pick;launchRuntimeEffect('confetti',dialog)}});
  $('.runtime-effect-button',dialog).forEach(b=>b.onclick=()=>launchRuntimeEffect(b.dataset.effect||'confetti',dialog));
+
+ $$('.runtime-dice',dialog).forEach(box=>{
+  const btn=$('.dice-roll',box),result=$('.dice-result',box),dice=$$('.dice-3d',box),hand=$('.dice-throw-hand',box);
+  btn.onclick=()=>{
+   btn.disabled=true;result.textContent='';
+   if(hand)hand.classList.add('throwing');
+   dice.forEach((d,i)=>{
+    d.classList.remove('rolling');void d.offsetWidth;d.classList.add('rolling');
+    const sides=Number(box.dataset.sides)||6,value=1+Math.floor(Math.random()*sides);
+    setTimeout(()=>{
+     d.querySelector('span').textContent=value;d.dataset.value=value;
+     if(i===dice.length-1){
+      const vals=dice.map(x=>Number(x.dataset.value)||0);
+      result.textContent='Resultado: '+vals.join(' + ')+(vals.length>1?' = '+vals.reduce((a,b)=>a+b,0):'');
+      btn.disabled=false;if(hand)hand.classList.remove('throwing');
+     }
+    },950+i*120);
+   });
+  };
+ });
+
+ $$('.runtime-tv',dialog).forEach(box=>{
+  const e=s.elements.find(x=>x.id===box.dataset.tvId);if(!e)return;
+  const screen=$('.runtime-tv-screen',box),label=$('[data-tv-channel-label]',box),title=$('[data-tv-title]',box),time=$('[data-tv-time]',box),qBtn=$('[data-tv-question]',box),qBox=$('.tv-question-box',box),qText=$('textarea',qBox),qStatus=$('[data-tv-status]',box);
+  let current=0,powered=true;
+  const parseRanges=v=>String(v||'').split(',').map(x=>x.trim()).filter(Boolean).map(x=>{const[a,b]=x.split('-').map(Number);return[a||0,b||0]}).filter(x=>x[1]>x[0]);
+  const currentChannel=()=>e.channels?.[current];
+
+  const renderChannel=async()=>{
+   const ch=currentChannel();if(!ch)return;
+   label.textContent=ch.number||String(current+1);title.textContent=ch.title||'Canal';qBtn.hidden=ch.allowQuestions===false;qBox.hidden=true;screen.innerHTML='';
+   if(!powered){screen.innerHTML='<div class="tv-off"></div>';time.textContent='desligada';return}
+   if(ch.sourceMode==='embed'&&ch.embedSrc){screen.innerHTML=`<iframe src="${esc(ch.embedSrc)}" allowfullscreen title="${esc(ch.title||'Canal')}"></iframe>`;time.textContent='conteúdo incorporado';return}
+   if(ch.sourceMode==='local'&&ch.assetId){screen.innerHTML=`<video controls preload="metadata" data-learn-local-asset="${esc(ch.assetId)}"></video>`;await hydrateLocalVideos(screen)}
+   else if(ch.src){screen.innerHTML=`<video controls preload="metadata" src="${esc(ch.src)}"></video>`}
+   else{screen.innerHTML='<div class="tv-static">SEM SINAL<small>Adicione uma mídia a este canal</small></div>';time.textContent='';return}
+   const v=$('video',screen);
+   if(v){
+    v.onloadedmetadata=()=>{const start=Number(ch.start)||0;if(start>0)v.currentTime=Math.min(start,v.duration||start);time.textContent=(start?'início '+start+'s':'')+(ch.end?' · fim '+ch.end+'s':'')};
+    const ranges=parseRanges(ch.skipRanges);
+    v.ontimeupdate=()=>{if(ch.end&&v.currentTime>=Number(ch.end)){v.pause();v.currentTime=Number(ch.end)}for(const[a,b]of ranges){if(v.currentTime>=a&&v.currentTime<b){v.currentTime=b;break}}};
+   }
+  };
+
+  $('[data-tv-next]',box).onclick=()=>{current=(current+1)%(e.channels?.length||1);renderChannel()};
+  $('[data-tv-prev]',box).onclick=()=>{current=(current-1+(e.channels?.length||1))%(e.channels?.length||1);renderChannel()};
+  $$('[data-tv-number]',box).forEach(b=>b.onclick=()=>{const idx=e.channels?.findIndex(ch=>String(ch.number)===b.dataset.tvNumber);if(idx>=0){current=idx;renderChannel()}});
+  $('[data-tv-power]',box).onclick=()=>{powered=!powered;renderChannel()};
+  $('[data-tv-play]',box).onclick=()=>$('video',screen)?.play().catch(()=>{});
+  $('[data-tv-pause]',box).onclick=()=>$('video',screen)?.pause();
+  $('[data-tv-back]',box).onclick=()=>{const v=$('video',screen);if(v)v.currentTime=Math.max(0,v.currentTime-10)};
+  $('[data-tv-forward]',box).onclick=()=>{const v=$('video',screen);if(v)v.currentTime=Math.min(v.duration||Infinity,v.currentTime+10)};
+  qBtn.onclick=()=>qBox.hidden=!qBox.hidden;
+  $('[data-tv-send]',box).onclick=async()=>{
+   const ch=currentChannel(),msg=qText.value.trim(),v=$('video',screen);if(!msg)return;
+   qStatus.textContent='Enviando...';
+   const payload={id:uid('support'),schema:'keise-learning/support-v1',projectId:p.id,projectTitle:p.title,context:p.context||'',slideId:s.id,slideTitle:s.title||'',videoId:e.id,videoTitle:'TV · '+(ch?.title||'Canal'),timestamp:v&&Number.isFinite(v.currentTime)?Math.round(v.currentTime*10)/10:null,kind:'question',message:msg,privacy:ensureProjectSupport(p).defaultPrivacy||'private',createdAt:new Date().toISOString()};
+   const r=await sendSupportPayload(p,payload);
+   qStatus.textContent=r.sent?'Enviado para a mediação.':'Rascunho salvo neste dispositivo.';
+   if(r.sent)qText.value='';
+  };
+  renderChannel();
+ });
 }function wireRuntimeSpeech(p,s,dialog){
  const narrate=$('#runtimeNarrate',dialog);if(narrate)narrate.onclick=()=>{if(!speakText(slideNarrationText(s),p))narrate.textContent='Narração indisponível neste navegador'};
  const stop=$('#runtimeStopSpeech',dialog);if(stop)stop.onclick=()=>{if('speechSynthesis'in window)speechSynthesis.cancel()};
