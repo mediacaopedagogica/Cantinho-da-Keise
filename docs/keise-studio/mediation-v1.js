@@ -263,11 +263,31 @@ function bind(){
  const df=$('#medDisciplineFilter',root);if(df)df.onchange=()=>{filterDiscipline=df.value;render()};
  const copy=$('#medCopyReport',root);if(copy)copy.onclick=async()=>{await navigator.clipboard.writeText($('#medReportText',root).value);toast('Relatório copiado.')};
  const saveBtn=$('#medSaveReport',root);if(saveBtn)saveBtn.onclick=()=>download('relatorio-mediacao-keise-studio.txt',$('#medReportText',root).value,'text/plain;charset=utf-8');
+ const reportType=$('#medReportType',root);if(reportType)reportType.onchange=()=>{$('#medReportText',root).value=reportText(reportType.value)};
  const exp=$('#medExportBtn',root);if(exp)exp.onclick=exportData;
  const imp=$('#medImportBtn',root),file=$('#medImportFile',root);if(imp&&file){imp.onclick=()=>file.click();file.onchange=()=>importData(file.files?.[0])}
- $('[data-content-copy]',root).forEach(b=>b.onclick=async()=>{const item=contentSupportItems().find(x=>x.id===b.dataset.contentCopy);if(!item)return;const text=[contentKindLabel(item),contentContextText(item),item.message||''].filter(Boolean).join('\n');await navigator.clipboard.writeText(text);toast('Contexto copiado.')});
- $('[data-content-review]',root).forEach(b=>b.onclick=()=>{const map=contentStatusMap(),id=b.dataset.contentReview;map[id]=!map[id];saveContentStatus(map);render()});
+ $$('[data-content-copy]',root).forEach(b=>b.onclick=async()=>{const item=contentSupportItems().find(x=>x.id===b.dataset.contentCopy);if(!item)return;const text=[contentKindLabel(item),contentContextText(item),item.message||''].filter(Boolean).join('\n');await navigator.clipboard.writeText(text);toast('Contexto copiado.')});
+ $$('[data-content-review]',root).forEach(b=>b.onclick=()=>{const map=contentStatusMap(),id=b.dataset.contentReview;map[id]=!map[id];saveContentStatus(map);render()});
  const expContent=$('#medExportContent',root);if(expContent)expContent.onclick=()=>download('keise-studio-duvidas-contextuais.json',JSON.stringify({schema:'keise-learning/support-queue-v1',exportedAt:new Date().toISOString(),items:contentSupportItems()},null,2),'application/json;charset=utf-8');
+
+ $('#medAddActivity',root)?.addEventListener('click',()=>openActivityForm());
+ $$('[data-activity-edit]',root).forEach(b=>b.onclick=()=>openActivityForm(state.activities.find(x=>x.id===b.dataset.activityEdit)));
+ $$('[data-activity-toggle]',root).forEach(b=>b.onclick=()=>{state.activities=state.activities.map(x=>x.id===b.dataset.activityToggle?{...x,status:x.status==='concluida'?'pendente':'concluida',updatedAt:new Date().toISOString()}:x);save();render()});
+ $$('[data-activity-delete]',root).forEach(b=>b.onclick=()=>{if(!confirm('Excluir este prazo?'))return;state.activities=state.activities.filter(x=>x.id!==b.dataset.activityDelete);save();render()});
+
+ $('#medAddMeeting',root)?.addEventListener('click',()=>openMeetingForm());
+ $$('[data-meeting-edit]',root).forEach(b=>b.onclick=()=>openMeetingForm(state.meetings.find(x=>x.id===b.dataset.meetingEdit)));
+ $$('[data-meeting-toggle]',root).forEach(b=>b.onclick=()=>{state.meetings=state.meetings.map(x=>x.id===b.dataset.meetingToggle?{...x,status:x.status==='concluido'?'agendado':'concluido',updatedAt:new Date().toISOString()}:x);save();render()});
+ $$('[data-meeting-open]',root).forEach(b=>b.onclick=()=>{const m=state.meetings.find(x=>x.id===b.dataset.meetingOpen);if(!m?.url)return;if(/^https?:\/\//i.test(m.url))window.open(m.url,'_blank','noopener')});
+
+ $('#medAddTemplate',root)?.addEventListener('click',()=>openTemplateForm());
+ $$('[data-template-edit]',root).forEach(b=>b.onclick=()=>openTemplateForm(state.templates.find(x=>x.id===b.dataset.templateEdit)));
+ $$('[data-template-delete]',root).forEach(b=>b.onclick=()=>{state.templates=state.templates.filter(x=>x.id!==b.dataset.templateDelete);save();render()});
+ $$('[data-template-use]',root).forEach(b=>b.onclick=()=>{const select=$('#commTemplateSelect',root);if(select){select.value=b.dataset.templateUse;fillCommunicationFromTemplate(b.dataset.templateUse);window.scrollTo({top:0,behavior:'smooth'})}});
+ const templateSelect=$('#commTemplateSelect',root);if(templateSelect)templateSelect.onchange=()=>fillCommunicationFromTemplate(templateSelect.value);
+ for(const sel of ['#commStudentName','#commActivity','#commObservation']){const n=$(sel,root);if(n)n.oninput=()=>fillCommunicationFromTemplate(templateSelect?.value||'')}
+ $('#commCopy',root)?.addEventListener('click',async()=>{const msg=$('#commMessage',root)?.value||'';await navigator.clipboard.writeText(msg);toast('Mensagem copiada.')});
+ $('#commSaveHistory',root)?.addEventListener('click',registerCommunication);
 }
 function openStudentForm(student=null){
  editingId=student?.id||null;
