@@ -1,11 +1,49 @@
 'use strict';
 (()=>{
 const KEY='keise-learning-author-v1';
+const LIB_KEY='keise-learning-library-v1';
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 let root=null,state=load(),mode='library',activeProjectId=null,selectedElementId=null,learnMediaUrls=new Map(),recordStream=null,recordRecorder=null,recordChunks=[],previewDevice='desktop',previewMode='screen';
 
 function blank(){return{version:1,projects:[]}}
 function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');return x&&x.version===1?x:blank()}catch{return blank()}}
+function loadKeiseLibrary(){try{const x=JSON.parse(localStorage.getItem(LIB_KEY)||'null');return x&&x.version===1?x:{version:1,items:[]}}catch{return{version:1,items:[]}}}
+function saveKeiseLibrary(lib){localStorage.setItem(LIB_KEY,JSON.stringify(lib))}
+function cloneJSON(x){return JSON.parse(JSON.stringify(x))}
+function freshElementClone(source){
+ const e=cloneJSON(source);e.id=uid('el');
+ if(Array.isArray(e.checkpoints))e.checkpoints=e.checkpoints.map(x=>({...x,id:uid('cp'),correctTargetSlideId:'',wrongTargetSlideId:''}));
+ if(Array.isArray(e.hotspots))e.hotspots=e.hotspots.map(x=>({...x,id:uid('hot'),targetSlideId:''}));
+ if(Array.isArray(e.slides))e.slides=e.slides.map(x=>({...x,id:uid('socialslide')}));
+ if(Array.isArray(e.cards))e.cards=e.cards.map(x=>({...x,id:uid('card')}));
+ if('targetSlideId'in e)e.targetSlideId='';
+ return e;
+}
+function freshSlideClone(source){
+ const s=cloneJSON(source);s.id=uid('slide');s.title=(s.title||'Tela reutilizada')+' · cópia';s.elements=(s.elements||[]).map(freshElementClone);return s
+}
+function freshProjectClone(source){
+ const p=cloneJSON(source),map=new Map();p.id=uid('learn');p.title=(p.title||'Modelo')+' · cópia';p.createdAt=new Date().toISOString();p.updatedAt=p.createdAt;
+ p.slides=(p.slides||[]).map(s=>{const old=s.id,ns=freshSlideClone(s);map.set(old,ns.id);return ns});
+ p.slides.forEach(s=>s.elements.forEach(e=>{
+  if(e.targetSlideId)e.targetSlideId=map.get(e.targetSlideId)||'';
+  (e.checkpoints||[]).forEach(x=>{if(x.correctTargetSlideId)x.correctTargetSlideId=map.get(x.correctTargetSlideId)||'';if(x.wrongTargetSlideId)x.wrongTargetSlideId=map.get(x.wrongTargetSlideId)||''});
+  (e.hotspots||[]).forEach(x=>{if(x.targetSlideId)x.targetSlideId=map.get(x.targetSlideId)||''});
+ }));
+ p.activeSlideId=p.slides[0]?.id||null;return p;
+}
+function elementTypeLabel(type){
+ const labels={heading:'Título',text:'Texto',image:'Imagem',emoji:'Emoji/ícone',video:'Vídeo interativo',button:'Botão',quiz:'Questão',reflection:'Reflexão',popup:'Popup',tabs:'Abas',hotspot:'Imagem interativa',path:'Trilha',meeting:'Encontro ao vivo',escape:'Escape room',bingo:'Bingo Studio',raffle:'Roleta',fortune:'Biscoito da Sorte',phone:'Simulador de celular',effect:'Efeito'};
+ return labels[type]||type||'Componente';
+}
+const BUILTIN_LIBRARY=[
+ {id:'builtin-tira-duvidas',kind:'experience',builtin:true,title:'Missão Tira-Dúvidas',icon:'🧱',category:'Jogos',description:'Brick game “Momento Responde Dúvidas”. Base original recuperada; disciplina, cores, perguntas e respostas serão parametrizáveis.',source:'Momento-tira-duvidas/index.html'},
+ {id:'builtin-tour-imobiliario',kind:'experience',builtin:true,title:'Tour Interativo Imobiliário',icon:'🏠',category:'Imersão',description:'Modelo de tour, evidências e interação do projeto de Mercado e Operações Imobiliárias.',source:'tours-imobiliarios/aluno.html'},
+ {id:'builtin-triagem-circular',kind:'experience',builtin:true,title:'Triagem / Missão Circular',icon:'♻️',category:'Imersão',description:'Experiência de inspeção, fases e triagem reaproveitável para outros objetos e disciplinas.',source:'missao-circular/'}
+];
+function addLibraryItem(kind,data,title){
+ const lib=loadKeiseLibrary(),item={id:uid('lib'),kind,builtin:false,title:title||'Meu modelo',createdAt:new Date().toISOString(),data:cloneJSON(data)};lib.items.unshift(item);saveKeiseLibrary(lib);return item;
+}
 function save(){localStorage.setItem(KEY,JSON.stringify(state));}
 function uid(p='id'){return p+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8)}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -223,7 +261,7 @@ function editor(){
   <header class="learn-editor-top">
    <button class="soft" id="learnBack">← Projetos</button>
    <div><small>Keise Learning</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'Sem contexto informado')}</p></div>
-   <div class="learn-editor-actions"><span class="learn-save-state">● salvo localmente</span><button class="soft" id="learnSupportSettingsBtn">💜 Apoios</button><button class="soft" id="learnDesignBtn">🎨 Design</button><button class="soft" id="learnA11yBtn">♿ Acessibilidade</button><button class="soft" id="learnCodeBtn">&lt;/&gt; Código</button><button class="soft" id="learnPreview">▶ Visualizar</button><button class="primary" id="learnExport">Exportar HTML</button></div>
+   <div class="learn-editor-actions"><span class="learn-save-state">● salvo localmente</span><button class="soft" id="learnLibraryBtn">🧩 Biblioteca</button><button class="soft" id="learnSupportSettingsBtn">💜 Apoios</button><button class="soft" id="learnDesignBtn">🎨 Design</button><button class="soft" id="learnA11yBtn">♿ Acessibilidade</button><button class="soft" id="learnCodeBtn">&lt;/&gt; Código</button><button class="soft" id="learnPreview">▶ Visualizar</button><button class="primary" id="learnExport">Exportar HTML</button></div>
   </header>
   <div class="learn-workspace">
    <aside class="learn-slides">
@@ -232,10 +270,10 @@ function editor(){
     <button class="soft learn-add-screen" id="learnAddSlideBottom">＋ Nova tela</button>
    </aside>
    <section class="learn-canvas-wrap">
-    <div class="learn-canvas-head"><div><span>Tela atual</span><input id="learnSlideTitle" maxlength="80" value="${esc(s.title||'')}"></div><button class="tiny danger-text" id="learnDeleteSlide" ${p.slides.length===1?'disabled':''}>Excluir tela</button></div>
+    <div class="learn-canvas-head"><div><span>Tela atual</span><input id="learnSlideTitle" maxlength="80" value="${esc(s.title||'')}"></div><div class="learn-canvas-actions"><button class="tiny" id="learnSaveSlide">🧩 Salvar tela</button><button class="tiny danger-text" id="learnDeleteSlide" ${p.slides.length===1?'disabled':''}>Excluir tela</button></div></div>
     <div class="learn-canvas">
      <div class="learn-slide-stage layout-${ensureDesign(p).layout}" style="${designVars(p)}">
-      ${s.elements.length?s.elements.map(e=>`<article class="learn-element ${e.id===selectedElementId?'selected':''}" data-learn-element="${e.id}">${elementMarkup(e,p)}<div class="element-tools"><button data-move="up" title="Mover para cima">↑</button><button data-move="down" title="Mover para baixo">↓</button><button data-remove="${e.id}" title="Excluir">×</button></div></article>`).join(''):empty('✨','Tela vazia','Use a biblioteca de blocos à direita para começar.')}
+      ${s.elements.length?s.elements.map(e=>`<article class="learn-element ${e.id===selectedElementId?'selected':''}" data-learn-element="${e.id}">${elementMarkup(e,p)}<div class="element-tools"><button data-save-component="${e.id}" title="Salvar na Biblioteca">🧩</button><button data-move="up" title="Mover para cima">↑</button><button data-move="down" title="Mover para baixo">↓</button><button data-remove="${e.id}" title="Excluir">×</button></div></article>`).join(''):empty('✨','Tela vazia','Use a biblioteca de blocos à direita para começar.')}
      </div>
     </div>
    </section>
@@ -244,6 +282,14 @@ function editor(){
     ${element()?properties(element(),p):toolbox()}
    </aside>
   </div>
+  <dialog class="dialog wide learn-library-dialog" id="learnLibraryDialog">
+   <button class="dialog-close" type="button" data-learn-close>×</button>
+   <div class="dialog-icon">🧩</div><h2>Biblioteca Keise</h2>
+   <p>Reutilize componentes, telas e experiências sem alterar o original.</p>
+   <div class="library-toolbar"><button class="soft" id="learnSaveProjectTemplate" type="button">💾 Salvar projeto atual como modelo</button><button class="soft" id="learnExportLibrary" type="button">Exportar minha biblioteca</button><input id="learnImportLibraryFile" type="file" accept=".json,application/json" hidden><button class="soft" id="learnImportLibrary" type="button">Importar biblioteca</button></div>
+   <div class="library-filter"><button class="active" data-lib-filter="all">Tudo</button><button data-lib-filter="component">Componentes</button><button data-lib-filter="slide">Telas</button><button data-lib-filter="project">Meus modelos</button><button data-lib-filter="experience">Modelos oficiais</button></div>
+   <div id="learnLibraryGrid" class="learn-library-grid"></div>
+  </dialog>
   <dialog class="dialog wide learn-preview-dialog" id="learnPreviewDialog"><button class="dialog-close" type="button" data-learn-close>×</button><div id="learnPreviewBody"></div></dialog>
   <dialog class="dialog learn-support-settings-dialog" id="learnSupportSettingsDialog">
    <button class="dialog-close" type="button" data-learn-close>×</button>
@@ -460,8 +506,38 @@ function updateDesignLabels(){
 function updateDesignPreview(p){
  const box=$('#designPreviewStrip',root);if(!box)return;box.style.cssText=designVars(p);box.className='design-preview-strip layout-'+ensureDesign(p).layout;
 }
+function libraryEntries(){return[...BUILTIN_LIBRARY,...loadKeiseLibrary().items]}
+function renderLearningLibrary(filter='all'){
+ const grid=$('#learnLibraryGrid',root);if(!grid)return;const entries=libraryEntries().filter(x=>filter==='all'||x.kind===filter);
+ grid.innerHTML=entries.length?entries.map(item=>`<article class="library-item ${item.builtin?'builtin':''}" data-lib-item="${item.id}"><div class="library-item-icon">${item.icon|| (item.kind==='component'?'🧩':item.kind==='slide'?'🖥️':item.kind==='project'?'📦':'✨')}</div><div class="library-item-meta"><span>${item.builtin?'MODELO OFICIAL':item.kind==='component'?'COMPONENTE':item.kind==='slide'?'TELA':'MODELO'}</span><h3>${esc(item.title)}</h3><p>${esc(item.description|| (item.builtin?'Modelo recuperado de projeto anterior.':'Salvo por você em '+new Date(item.createdAt).toLocaleDateString('pt-BR')))}</p></div><div class="library-item-actions">${item.builtin?`<button class="primary" data-lib-builtin="${item.id}" type="button">Preparar cópia</button>`:`<button class="primary" data-lib-use="${item.id}" type="button">Usar cópia</button><button class="tiny danger-text" data-lib-delete="${item.id}" type="button">Excluir</button>`}</div></article>`).join(''):'<div class="learn-empty"><div><span>🧩</span><b>Nada salvo nesta categoria ainda.</b><p>Salve um componente, uma tela ou um projeto para reutilizar depois.</p></div></div>';
+ bindLibraryGrid();
+}
+function bindLibraryGrid(){
+ $('[data-lib-use]',root).forEach(b=>b.onclick=()=>useLibraryItem(b.dataset.libUse));
+ $('[data-lib-delete]',root).forEach(b=>b.onclick=()=>{const lib=loadKeiseLibrary();lib.items=lib.items.filter(x=>x.id!==b.dataset.libDelete);saveKeiseLibrary(lib);renderLearningLibrary(document.querySelector('[data-lib-filter].active')?.dataset.libFilter||'all')});
+ $('[data-lib-builtin]',root).forEach(b=>b.onclick=()=>{const item=BUILTIN_LIBRARY.find(x=>x.id===b.dataset.libBuiltin);if(!item)return;alert(item.title+' foi registrado como modelo oficial. A conversão parametrizável preservará a experiência original e permitirá trocar disciplina, conteúdo, cores e regras.')});
+}
+function useLibraryItem(id){
+ const item=loadKeiseLibrary().items.find(x=>x.id===id);if(!item)return;
+ if(item.kind==='component'){const e=freshElementClone(item.data);slide().elements.push(e);selectedElementId=e.id;touch();render();toast('Componente inserido como cópia.')}
+ else if(item.kind==='slide'){const s=freshSlideClone(item.data);project().slides.push(s);project().activeSlideId=s.id;selectedElementId=null;touch();render();toast('Tela reutilizada.')}
+ else if(item.kind==='project'){const p=freshProjectClone(item.data);state.projects.unshift(p);save();activeProjectId=p.id;selectedElementId=null;mode='editor';render();toast('Modelo duplicado como novo projeto.')}
+ $('#learnLibraryDialog',root)?.close();
+}
+function saveSelectedComponentToLibrary(id){
+ const e=slide()?.elements.find(x=>x.id===id);if(!e)return;const name=prompt('Nome para este componente:',elementTypeLabel(e.type));if(!name)return;addLibraryItem('component',e,name.trim());toast('Componente salvo na Biblioteca Keise.');
+}
 function bindEditor(){
  const p=project(),s=slide();if(!p||!s)return;
+ $('#learnLibraryBtn',root).onclick=()=>{renderLearningLibrary('all');$('#learnLibraryDialog',root).showModal()};
+ $('#learnSaveSlide',root).onclick=()=>{const name=prompt('Nome para esta tela:',s.title||'Tela reutilizável');if(!name)return;addLibraryItem('slide',s,name.trim());toast('Tela salva na Biblioteca Keise.')};
+ $('[data-save-component]',root).forEach(b=>b.onclick=ev=>{ev.stopPropagation();saveSelectedComponentToLibrary(b.dataset.saveComponent)});
+ $('[data-lib-filter]',root).forEach(b=>b.onclick=()=>{$('[data-lib-filter]',root).forEach(x=>x.classList.remove('active'));b.classList.add('active');renderLearningLibrary(b.dataset.libFilter)});
+ $('#learnSaveProjectTemplate',root).onclick=()=>{const name=prompt('Nome do modelo:',p.title||'Meu modelo');if(!name)return;addLibraryItem('project',p,name.trim());renderLearningLibrary('project');toast('Projeto salvo como modelo.')};
+ $('#learnExportLibrary',root).onclick=()=>{const blob=new Blob([JSON.stringify({schema:'keise-learning/library-v1',exportedAt:new Date().toISOString(),library:loadKeiseLibrary()},null,2)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='keise-learning-biblioteca.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+ $('#learnImportLibrary',root).onclick=()=>$('#learnImportLibraryFile',root).click();
+ $('#learnImportLibraryFile',root).onchange=async ev=>{const file=ev.target.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());const incoming=data.library||data;if(!Array.isArray(incoming.items))throw new Error('Arquivo incompatível');const lib=loadKeiseLibrary(),known=new Set(lib.items.map(x=>x.id));incoming.items.forEach(x=>{if(!known.has(x.id))lib.items.push(x)});saveKeiseLibrary(lib);renderLearningLibrary('all');toast('Biblioteca importada.')}catch(err){alert('Não foi possível importar: '+err.message)}};
+
  $('#learnBack',root).onclick=()=>{mode='library';selectedElementId=null;render()};
  $('#learnAddSlide',root).onclick=$('#learnAddSlideBottom',root).onclick=()=>{const n={id:uid('slide'),title:'Nova tela',elements:[]};p.slides.push(n);p.activeSlideId=n.id;selectedElementId=null;touch();render()};
  $$('[data-learn-slide]',root).forEach(b=>b.onclick=()=>{p.activeSlideId=b.dataset.learnSlide;selectedElementId=null;touch();render()});
@@ -589,8 +665,9 @@ function bindProperties(){
 }
 function renderCanvasLight(){
  const s=slide(),stage=$('.learn-slide-stage',root);if(!s||!stage)return;
- stage.innerHTML=s.elements.length?s.elements.map(e=>`<article class="learn-element ${e.id===selectedElementId?'selected':''}" data-learn-element="${e.id}">${elementMarkup(e,project())}<div class="element-tools"><button data-move="up">↑</button><button data-move="down">↓</button><button data-remove="${e.id}">×</button></div></article>`).join(''):empty('✨','Tela vazia','Use a biblioteca de blocos à direita para começar.');
- $$('[data-learn-element]',stage).forEach(card=>card.onclick=e=>{if(e.target.closest('.element-tools'))return;selectedElementId=card.dataset.learnElement;render()});
+ stage.innerHTML=s.elements.length?s.elements.map(e=>`<article class="learn-element ${e.id===selectedElementId?'selected':''}" data-learn-element="${e.id}">${elementMarkup(e,project())}<div class="element-tools"><button data-save-component="${e.id}" title="Salvar na Biblioteca">🧩</button><button data-move="up">↑</button><button data-move="down">↓</button><button data-remove="${e.id}">×</button></div></article>`).join(''):empty('✨','Tela vazia','Use a biblioteca de blocos à direita para começar.');
+ $('[data-learn-element]',stage).forEach(card=>card.onclick=e=>{if(e.target.closest('.element-tools'))return;selectedElementId=card.dataset.learnElement;render()});
+ $('[data-save-component]',stage).forEach(b=>b.onclick=ev=>{ev.stopPropagation();saveSelectedComponentToLibrary(b.dataset.saveComponent)});
  $$('[data-remove]',stage).forEach(b=>b.onclick=e=>{e.stopPropagation();const s=slide();s.elements=s.elements.filter(x=>x.id!==b.dataset.remove);selectedElementId=null;touch();render()});
  $$('[data-move]',stage).forEach(b=>b.onclick=e=>{e.stopPropagation();const s=slide(),id=b.closest('[data-learn-element]').dataset.learnElement,i=s.elements.findIndex(x=>x.id===id),j=i+(b.dataset.move==='up'?-1:1);if(j<0||j>=s.elements.length)return;[s.elements[i],s.elements[j]]=[s.elements[j],s.elements[i]];touch();render()});
 }
