@@ -220,5 +220,5 @@ async function importData(file){
  if(!file)return;try{const payload=JSON.parse(await file.text());if(payload?.schema!=='keise-studio/mediation-v1'||payload?.data?.version!==1)throw new Error('Arquivo incompatível.');if(!confirm('Importar este backup substituirá os dados locais atuais da Mediação neste navegador. Continuar?'))return;state=payload.data;save();render();toast('Backup importado.')}catch(e){alert('Não foi possível importar: '+e.message)}
 }
 function mount(target){root=target;render()}
-window.KeiseMediation=Object.freeze({mount,exportState:()=>JSON.parse(JSON.stringify(state))});
+window.KeiseMediation=Object.freeze({mount,exportState:()=>JSON.parse(JSON.stringify(state)),showTab(name){if(['overview','students','followups','reports'].includes(name))tab=name;if(root)render();},showStudent(id){tab='students';if(root){render();setTimeout(()=>openStudent(id),0);}}});
 })();
