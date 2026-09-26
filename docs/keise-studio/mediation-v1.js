@@ -152,6 +152,39 @@ function followupsView(){
  <div class="med-section-head"><div><h2>💬 Intervenções e acompanhamentos</h2><p>Registro cronológico das ações realizadas pela mediação.</p></div><button class="soft" data-tab="students">Abrir estudantes</button></div>
  <section class="panel">${rows.length?'<div class="med-timeline">'+rows.map(x=>{const s=state.students.find(a=>a.id===x.studentId);return `<article><div class="timeline-dot"></div><div><small>${fmtDate(x.at,true)}</small><h4>${esc(s?.name||'Estudante')} · ${esc(x.type)}</h4><p><b>Canal:</b> ${esc(x.channel)}${x.outcome?' · <b>Resultado:</b> '+esc(x.outcome):''}</p><p>${esc(x.note||'Sem observação adicional.')}</p></div></article>`}).join('')+'</div>':empty('💬','Ainda não há intervenções','Os registros aparecerão aqui em ordem cronológica.')}</section>`;
 }
+function signalsView(){
+ const counts=signalCounts(),students=state.students.filter(s=>activeSignals(s).length||s.status==='atencao'||s.status==='aguardando'||due(s));
+ return `
+ <div class="med-section-head"><div><h2>⚠️ Sinais e permanência</h2><p>Visualize padrões de atenção sem transformar sinais em rótulos permanentes.</p></div><button class="primary" data-add-student>＋ Adicionar estudante</button></div>
+ <div class="signal-summary-grid">${Object.entries(SIGNALS).map(([k,label])=>`<article><span>${counts[k]||0}</span><div><b>${esc(label)}</b><small>registro(s)</small></div></article>`).join('')}</div>
+ <section class="panel"><div class="med-panel-head"><div><h3>Estudantes para acompanhamento</h3><p>Ordenados pelos registros que pedem atenção.</p></div><span class="content-pending-pill">${students.length} estudante(s)</span></div>
+ ${students.length?'<div class="signal-student-grid">'+students.map(s=>`<button data-student="${s.id}"><span class="attention-avatar">${esc((s.name||'?').slice(0,1).toUpperCase())}</span><span><b>${esc(s.name)}</b><small>${esc(s.discipline||'Sem disciplina')}</small>${signalTags(s)}</span><i>›</i></button>`).join('')+'</div>':empty('🌷','Nenhum sinal ativo','Quando você registrar sinais de acompanhamento, eles aparecem aqui.')}</section>`;
+}
+function activitiesView(){
+ const list=[...state.activities].sort((a,b)=>String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999'))),pending=list.filter(x=>x.status!=='concluida'),late=pending.filter(x=>activityState(x)==='late');
+ return `
+ <div class="med-section-head"><div><h2>📌 Atividades e prazos</h2><p>Calendário operacional da mediação: entregas, avaliações, avisos e ações importantes.</p></div><button class="primary" id="medAddActivity">＋ Novo prazo</button></div>
+ <div class="ops-stats"><article><b>${pending.length}</b><small>pendentes</small></article><article><b>${late.length}</b><small>atrasados</small></article><article><b>${list.filter(x=>x.status==='concluida').length}</b><small>concluídos</small></article></div>
+ <section class="panel">${list.length?'<div class="activity-list">'+list.map(a=>`<article class="activity-card ${activityState(a)}"><div class="activity-date"><span>${a.dueDate?new Date(a.dueDate+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit'}):'—'}</span><small>${a.dueDate?new Date(a.dueDate+'T12:00:00').toLocaleDateString('pt-BR',{month:'short'}):'sem data'}</small></div><div><div class="activity-meta"><span>${esc(a.type||'Atividade')}</span><span>${esc(a.discipline||'Geral')}</span></div><h3>${esc(a.title)}</h3><p>${esc(a.notes||'')}</p></div><div class="activity-actions"><button class="tiny" data-activity-toggle="${a.id}">${a.status==='concluida'?'Reabrir':'Concluir'}</button><button class="tiny" data-activity-edit="${a.id}">Editar</button><button class="tiny danger-text" data-activity-delete="${a.id}">Excluir</button></div></article>`).join('')+'</div>':empty('📌','Nenhum prazo cadastrado','Adicione atividades, avaliações, avisos ou prazos que você precisa acompanhar.')}</section>`;
+}
+function meetingsView(){
+ const list=[...state.meetings].sort((a,b)=>new Date(a.at||'2999')-new Date(b.at||'2999'));
+ return `
+ <div class="med-section-head"><div><h2>🗓️ Plantões e encontros</h2><p>Organize orientação, plantão de dúvidas, webconferência e outros encontros pedagógicos.</p></div><button class="primary" id="medAddMeeting">＋ Novo encontro</button></div>
+ <section class="panel">${list.length?'<div class="meeting-list">'+list.map(m=>`<article class="meeting-card ${m.status||'agendado'}"><div class="meeting-icon">🗓️</div><div><span class="meeting-status">${m.status==='concluido'?'Concluído':m.status==='cancelado'?'Cancelado':'Agendado'}</span><h3>${esc(m.title)}</h3><p>${fmtDate(m.at,true)} · ${esc(m.discipline||'Geral')} · ${esc(m.provider||'Outro')}</p>${m.notes?`<small>${esc(m.notes)}</small>`:''}</div><div class="meeting-actions">${m.url?`<button class="tiny" data-meeting-open="${m.id}">Abrir ↗</button>`:''}<button class="tiny" data-meeting-toggle="${m.id}">${m.status==='concluido'?'Reabrir':'Concluir'}</button><button class="tiny" data-meeting-edit="${m.id}">Editar</button></div></article>`).join('')+'</div>':empty('🗓️','Nenhum encontro registrado','Cadastre plantões, orientações e webconferências para manter o histórico organizado.')}</section>`;
+}
+function communicationsView(){
+ return `
+ <div class="med-section-head"><div><h2>✉️ Comunicação e modelos</h2><p>Mensagens reutilizáveis para acolhimento, prazos, feedback e acompanhamento.</p></div><button class="primary" id="medAddTemplate">＋ Novo modelo</button></div>
+ <section class="communication-builder panel"><div class="med-panel-head"><div><h3>Montar mensagem</h3><p>Escolha um modelo, personalize e copie para o canal que você utiliza.</p></div></div><div class="comm-builder-grid"><label>Modelo<select id="commTemplateSelect"><option value="">Começar em branco</option>${state.templates.map(t=>`<option value="${t.id}">${esc(t.title)}</option>`).join('')}</select></label><label>Nome do estudante<input id="commStudentName" placeholder="Ex.: Maria"></label><label>Atividade/assunto<input id="commActivity" placeholder="Ex.: Atividade Dissertativa"></label><label class="comm-full">Observação<input id="commObservation" placeholder="Ponto de melhoria, orientação ou contexto"></label><label class="comm-full">Mensagem<textarea id="commMessage" rows="7"></textarea></label><div class="comm-full med-actions"><button class="soft" id="commCopy">Copiar mensagem</button><button class="soft" id="commSaveHistory">Registrar como comunicação realizada</button></div></div></section>
+ <div class="template-grid">${state.templates.map(t=>`<article class="template-card"><span>${esc(t.category||'Modelo')}</span><h3>${esc(t.title)}</h3><p>${esc(t.body)}</p><div><button class="tiny" data-template-use="${t.id}">Usar</button><button class="tiny" data-template-edit="${t.id}">Editar</button>${!String(t.id).startsWith('tpl-')?`<button class="tiny danger-text" data-template-delete="${t.id}">Excluir</button>`:''}</div></article>`).join('')}</div>`;
+}
+function historyView(){
+ const items=historyItems();
+ return `
+ <div class="med-section-head"><div><h2>🕘 Histórico da mediação</h2><p>Linha do tempo das ações registradas no Studio.</p></div><span class="content-pending-pill">${items.length} registro(s)</span></div>
+ <section class="panel">${items.length?'<div class="med-timeline">'+items.map(x=>`<article><div class="timeline-dot"></div><div><small>${fmtDate(x.at,true)}</small><h4>${x.icon} ${esc(x.title)}</h4><p><b>${esc(x.meta||'')}</b></p>${x.text?`<p>${esc(x.text)}</p>`:''}</div></article>`).join('')+'</div>':empty('🕘','Histórico vazio','Intervenções, atividades e encontros aparecerão aqui conforme forem registrados.')}</section>`;
+}
 function reportData(){
  const students=state.students,ints=state.interventions;
  const c=counts(),disc=disciplines();
@@ -196,18 +229,27 @@ function reportsView(){
 function empty(icon,title,text){return `<div class="med-empty"><div><span>${icon}</span><b>${title}</b><p>${text}</p></div></div>`}
 
 function shell(){
- const contentCount=contentSupportItems().filter(x=>!x._reviewed).length;
+ const contentCount=contentSupportItems().filter(x=>!x._reviewed).length,attention=state.students.filter(needsAttention).length,activityPending=state.activities.filter(x=>x.status!=='concluida').length,meetingPending=upcomingMeetings().length;
+ const nav=[
+  ['overview','☀️','Hoje','prioridades'],
+  ['students','👩‍🎓','Estudantes',state.students.length+' acompanhados'],
+  ['signals','⚠️','Sinais',attention+' atenção'],
+  ['activities','📌','Atividades',activityPending+' pendentes'],
+  ['followups','💬','Intervenções',state.interventions.length+' registros'],
+  ['content','🎬','Dúvidas do conteúdo',contentCount+' novas'],
+  ['meetings','🗓️','Plantões',meetingPending+' agendados'],
+  ['communications','✉️','Comunicação',state.templates.length+' modelos'],
+  ['reports','📑','Relatórios','evidências'],
+  ['history','🕘','Histórico',historyItems().length+' eventos']
+ ];
  return `
- <div class="med-tabs" role="tablist">
-  <button class="${tab==='overview'?'active':''}" data-tab="overview">Hoje</button>
-  <button class="${tab==='students'?'active':''}" data-tab="students">Estudantes</button>
-  <button class="${tab==='followups'?'active':''}" data-tab="followups">Intervenções</button>
-  <button class="${tab==='content'?'active':''}" data-tab="content">Dúvidas do conteúdo${contentCount?` <span class="med-tab-badge">${contentCount}</span>`:''}</button>
-  <button class="${tab==='reports'?'active':''}" data-tab="reports">Relatórios</button>
- </div>
- <div id="mediationBody">${tab==='overview'?overview():tab==='students'?studentsView():tab==='followups'?followupsView():tab==='content'?contentSupportView():reportsView()}</div>
+ <div class="med-command-nav">${nav.map(([k,icon,label,meta])=>`<button class="${tab===k?'active':''}" data-tab="${k}"><span>${icon}</span><div><b>${label}</b><small>${meta}</small></div></button>`).join('')}</div>
+ <div id="mediationBody">${tab==='overview'?overview():tab==='students'?studentsView():tab==='signals'?signalsView():tab==='activities'?activitiesView():tab==='followups'?followupsView():tab==='content'?contentSupportView():tab==='meetings'?meetingsView():tab==='communications'?communicationsView():tab==='history'?historyView():reportsView()}</div>
  <dialog class="dialog med-dialog" id="medStudentDialog"><button class="dialog-close" type="button" data-med-close>×</button><div id="medStudentDialogBody"></div></dialog>
- <dialog class="dialog med-dialog" id="medInterventionDialog"><button class="dialog-close" type="button" data-med-close>×</button><div id="medInterventionDialogBody"></div></dialog>`;
+ <dialog class="dialog med-dialog" id="medInterventionDialog"><button class="dialog-close" type="button" data-med-close>×</button><div id="medInterventionDialogBody"></div></dialog>
+ <dialog class="dialog med-dialog" id="medActivityDialog"><button class="dialog-close" type="button" data-med-close>×</button><div id="medActivityDialogBody"></div></dialog>
+ <dialog class="dialog med-dialog" id="medMeetingDialog"><button class="dialog-close" type="button" data-med-close>×</button><div id="medMeetingDialogBody"></div></dialog>
+ <dialog class="dialog med-dialog" id="medTemplateDialog"><button class="dialog-close" type="button" data-med-close>×</button><div id="medTemplateDialogBody"></div></dialog>`;
 }
 function render(){
  if(!root)return;root.innerHTML=shell();bind();
