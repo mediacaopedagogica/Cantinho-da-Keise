@@ -15,6 +15,38 @@ function slide(){const p=project();return p?.slides.find(s=>s.id===p.activeSlide
 function element(){return slide()?.elements.find(e=>e.id===selectedElementId)||null}
 function touch(){const p=project();if(p)p.updatedAt=new Date().toISOString();save()}
 function fmt(v){return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(v))}
+function ensureProjectSupport(p){
+ p.support??={endpoint:'',defaultPrivacy:'private'};
+ return p.support;
+}
+function ensureVideoSupport(e){
+ e.support??={enabled:true,start:0,end:0,pauseOnOpen:true,allowQuestion:true,allowSignals:true,allowComments:false,allowMaterial:false,materialLabel:'Acessar material agora',materialUrl:''};
+ return e.support;
+}
+function extractIframeSrc(code){
+ const raw=String(code||'').trim();if(!raw)return'';
+ try{const doc=new DOMParser().parseFromString(raw,'text/html'),iframe=doc.querySelector('iframe');if(iframe?.src)return iframe.src}catch{}
+ if(/^https?:\/\//i.test(raw))return raw;
+ const m=raw.match(/src\s*=\s*["']([^"']+)["']/i);return m?.[1]||'';
+}
+function supportDraftKey(p){return 'keise-learning-support-drafts:'+p.id}
+function saveLocalSupportDraft(p,payload){
+ const key=supportDraftKey(p);let list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch{}
+ list.push(payload);localStorage.setItem(key,JSON.stringify(list.slice(-500)));return payload;
+}
+async function sendSupportPayload(p,payload){
+ const cfg=ensureProjectSupport(p);
+ if(cfg.endpoint){
+  try{
+   const res=await fetch(cfg.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+   if(!res.ok)throw new Error('HTTP '+res.status);
+   return{sent:true,mode:'connected'};
+  }catch(e){
+   saveLocalSupportDraft(p,payload);return{sent:false,mode:'local',error:e.message};
+  }
+ }
+ saveLocalSupportDraft(p,payload);return{sent:false,mode:'local'};
+}
 
 function library(){
  return `
@@ -32,7 +64,13 @@ function empty(icon,title,text){return `<div class="learn-empty"><div><span>${ic
 function elementMarkup(e,p){
  if(e.type==='heading')return `<div class="learn-render heading"><h2>${esc(e.text||'Título')}</h2></div>`;
  if(e.type==='text')return `<div class="learn-render text"><p>${esc(e.text||'Digite seu texto.').replace(/\n/g,'<br>')}</p></div>`;
- if(e.type==='video')return `<div class="learn-render video"><div class="video-label">🎬 ${esc(e.title||'Vídeo')} ${(e.checkpoints||[]).length?`<span class="checkpoint-count">${e.checkpoints.length} ponto(s) interativo(s)</span>`:''}</div>${e.src?`<video controls preload="metadata" src="${esc(e.src)}"></video>`:'<div class="video-placeholder">Adicione a URL do vídeo nas propriedades.</div>'}</div>`;
+ if(e.type==='video'){
+  const support=ensureVideoSupport(e),source=e.sourceMode==='embed'&&e.embedSrc
+   ?`<div class="video-embed-preview"><iframe src="${esc(e.embedSrc)}" title="${esc(e.title||'Vídeo incorporado')}" loading="lazy" allowfullscreen></iframe></div>`
+   :e.src?`<video controls preload="metadata" src="${esc(e.src)}"></video>`:'<div class="video-placeholder">Adicione uma URL ou código de incorporação nas propriedades.</div>';
+  const supportCount=[support.allowQuestion,support.allowSignals,support.allowComments,support.allowMaterial].filter(Boolean).length;
+  return `<div class="learn-render video"><div class="video-label">🎬 ${esc(e.title||'Vídeo')} ${(e.checkpoints||[]).length?`<span class="checkpoint-count">${e.checkpoints.length} pergunta(s)</span>`:''} ${support.enabled&&supportCount?`<span class="support-count">💜 ${supportCount} apoio(s)</span>`:''}</div>${source}</div>`;
+ }
  if(e.type==='button')return `<div class="learn-render button-block"><button type="button" disabled>${esc(e.label||'Continuar')}</button><small>${e.targetSlideId?'Vai para outra tela':'Sem destino definido'}</small></div>`;
  if(e.type==='quiz')return `<div class="learn-render quiz"><b>❓ ${esc(e.question||'Sua pergunta')}</b><div>${(e.options||['Opção A','Opção B']).map((o,i)=>`<label><input type="radio" disabled> ${esc(o||'Opção '+(i+1))}</label>`).join('')}</div></div>`;
  if(e.type==='reflection')return `<div class="learn-render reflection"><b>💭 ${esc(e.prompt||'Reflita sobre este ponto.')}</b><textarea disabled placeholder="${esc(e.placeholder||'Escreva sua reflexão...')}"></textarea></div>`;
@@ -81,7 +119,30 @@ function toolbox(){
 }
 function properties(e,p){
  if(e.type==='heading'||e.type==='text')return `<div class="learn-props"><label>Conteúdo<textarea id="propText" rows="${e.type==='heading'?3:8}">${esc(e.text||'')}</textarea></label><small>As alterações são salvas automaticamente.</small></div>`;
- if(e.type==='video')return `<div class="learn-props"><label>Título<input id="propVideoTitle" value="${esc(e.title||'')}"></label><label>URL do vídeo<input id="propVideoSrc" value="${esc(e.src||'')}" placeholder="https://.../video.mp4"></label><p class="learn-prop-note">Use uma URL de vídeo acessível pelo navegador. O vídeo pode pausar automaticamente nos pontos interativos abaixo.</p><div class="checkpoint-editor"><div class="checkpoint-head"><b>Pontos interativos</b><button class="tiny" type="button" id="propAddCheckpoint">＋ Pergunta no vídeo</button></div>${(e.checkpoints||[]).length?(e.checkpoints||[]).map((cp,n)=>`<section class="checkpoint-item" data-cp="${cp.id}"><div class="checkpoint-item-head"><b>Ponto ${n+1}</b><button class="tiny danger-text" type="button" data-cp-delete="${cp.id}">Excluir</button></div><label>Tempo em segundos<input type="number" min="0" step="1" data-cp-field="at" data-cp-id="${cp.id}" value="${Number(cp.at)||0}"></label><label>Pergunta<textarea data-cp-field="question" data-cp-id="${cp.id}">${esc(cp.question||'')}</textarea></label>${(cp.options||[]).map((o,i)=>`<label>Alternativa ${String.fromCharCode(65+i)}<input data-cp-option="${i}" data-cp-id="${cp.id}" value="${esc(o)}"></label>`).join('')}<label>Resposta correta<select data-cp-field="correct" data-cp-id="${cp.id}">${(cp.options||[]).map((_,i)=>`<option value="${i}" ${Number(cp.correct)===i?'selected':''}>${String.fromCharCode(65+i)}</option>`).join('')}</select></label><label>Se acertar, ir para<select data-cp-field="correctTargetSlideId" data-cp-id="${cp.id}"><option value="">Continuar o vídeo</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map(s=>`<option value="${s.id}" ${cp.correctTargetSlideId===s.id?'selected':''}>${esc(s.title)}</option>`).join('')}</select></label><label>Se errar, ir para<select data-cp-field="wrongTargetSlideId" data-cp-id="${cp.id}"><option value="">Continuar o vídeo</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map(s=>`<option value="${s.id}" ${cp.wrongTargetSlideId===s.id?'selected':''}>${esc(s.title)}</option>`).join('')}</select></label><label>Feedback ao acertar<textarea data-cp-field="feedbackRight" data-cp-id="${cp.id}">${esc(cp.feedbackRight||'Muito bem!')}</textarea></label><label>Feedback ao errar<textarea data-cp-field="feedbackWrong" data-cp-id="${cp.id}">${esc(cp.feedbackWrong||'Revise este trecho e tente novamente.')}</textarea></label></section>`).join(''):'<p class="learn-prop-note">Nenhum ponto interativo ainda. Adicione uma pergunta e escolha em que segundo ela deve aparecer.</p>'}</div></div>`;
+ if(e.type==='video'){
+  const support=ensureVideoSupport(e);
+  return `<div class="learn-props">
+   <label>Título<input id="propVideoTitle" value="${esc(e.title||'')}"></label>
+   <label>Origem do vídeo<select id="propVideoSourceMode"><option value="url" ${e.sourceMode!=='embed'?'selected':''}>Link direto / MP4</option><option value="embed" ${e.sourceMode==='embed'?'selected':''}>Código de incorporação</option></select></label>
+   ${e.sourceMode==='embed'
+    ?`<label>Código de incorporação<textarea id="propVideoEmbed" rows="5" placeholder='<iframe src="..."></iframe>'>${esc(e.embedCode||'')}</textarea></label><label>Endereço detectado<input id="propVideoEmbedSrc" value="${esc(e.embedSrc||'')}" readonly></label>`
+    :`<label>URL do vídeo<input id="propVideoSrc" value="${esc(e.src||'')}" placeholder="https://.../video.mp4"></label>`}
+   <div class="support-editor">
+    <div class="support-editor-head"><b>💜 Apoios e Mediação</b><label class="support-switch"><input id="supportEnabled" type="checkbox" ${support.enabled?'checked':''}> Ativar</label></div>
+    <p class="learn-prop-note">Você decide o que o aluno pode fazer neste vídeo e em qual trecho.</p>
+    <div class="support-time-grid"><label>Disponível a partir de (s)<input id="supportStart" type="number" min="0" step="1" value="${Number(support.start)||0}"></label><label>Até (s) <small>0 = até o fim</small><input id="supportEnd" type="number" min="0" step="1" value="${Number(support.end)||0}"></label></div>
+    <label class="support-check"><input id="supportPause" type="checkbox" ${support.pauseOnOpen?'checked':''}> Pausar o vídeo ao abrir ajuda</label>
+    <label class="support-check"><input id="supportQuestion" type="checkbox" ${support.allowQuestion?'checked':''}> 💬 Dúvida no Ponto</label>
+    <label class="support-check"><input id="supportSignals" type="checkbox" ${support.allowSignals?'checked':''}> 🤔 Entendi / Tenho dúvida / Me perdi / Quero aprofundar</label>
+    <label class="support-check"><input id="supportComments" type="checkbox" ${support.allowComments?'checked':''}> 💭 Permitir comentário neste trecho</label>
+    <label class="support-check"><input id="supportMaterial" type="checkbox" ${support.allowMaterial?'checked':''}> 🔎 Acessar material agora</label>
+    <label>Texto do material<input id="supportMaterialLabel" value="${esc(support.materialLabel||'Acessar material agora')}"></label>
+    <label>Link do material<input id="supportMaterialUrl" value="${esc(support.materialUrl||'')}" placeholder="https://... ou PDF"></label>
+   </div>
+   <div class="checkpoint-editor"><div class="checkpoint-head"><b>❓ Perguntas programadas</b><button class="tiny" type="button" id="propAddCheckpoint">＋ Pergunta no vídeo</button></div>
+   ${(e.checkpoints||[]).length?(e.checkpoints||[]).map((cp,n)=>`<section class="checkpoint-item" data-cp="${cp.id}"><div class="checkpoint-item-head"><b>Ponto ${n+1}</b><button class="tiny danger-text" type="button" data-cp-delete="${cp.id}">Excluir</button></div><label>Tempo em segundos<input type="number" min="0" step="1" data-cp-field="at" data-cp-id="${cp.id}" value="${Number(cp.at)||0}"></label><label>Pergunta<textarea data-cp-field="question" data-cp-id="${cp.id}">${esc(cp.question||'')}</textarea></label>${(cp.options||[]).map((o,i)=>`<label>Alternativa ${String.fromCharCode(65+i)}<input data-cp-option="${i}" data-cp-id="${cp.id}" value="${esc(o)}"></label>`).join('')}<label>Resposta correta<select data-cp-field="correct" data-cp-id="${cp.id}">${(cp.options||[]).map((_,i)=>`<option value="${i}" ${Number(cp.correct)===i?'selected':''}>${String.fromCharCode(65+i)}</option>`).join('')}</select></label><label>Se acertar, ir para<select data-cp-field="correctTargetSlideId" data-cp-id="${cp.id}"><option value="">Continuar o vídeo</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map(s=>`<option value="${s.id}" ${cp.correctTargetSlideId===s.id?'selected':''}>${esc(s.title)}</option>`).join('')}</select></label><label>Se errar, ir para<select data-cp-field="wrongTargetSlideId" data-cp-id="${cp.id}"><option value="">Continuar o vídeo</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map(s=>`<option value="${s.id}" ${cp.wrongTargetSlideId===s.id?'selected':''}>${esc(s.title)}</option>`).join('')}</select></label><label>Feedback ao acertar<textarea data-cp-field="feedbackRight" data-cp-id="${cp.id}">${esc(cp.feedbackRight||'Muito bem!')}</textarea></label><label>Feedback ao errar<textarea data-cp-field="feedbackWrong" data-cp-id="${cp.id}">${esc(cp.feedbackWrong||'Revise este trecho e tente novamente.')}</textarea></label></section>`).join(''):'<p class="learn-prop-note">Nenhuma pergunta programada ainda.</p>'}</div>
+  </div>`;
+ }
  if(e.type==='button')return `<div class="learn-props"><label>Texto do botão<input id="propButtonLabel" value="${esc(e.label||'Continuar')}"></label><label>Ir para<select id="propButtonTarget"><option value="">Sem destino</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map((s,i)=>`<option value="${s.id}" ${e.targetSlideId===s.id?'selected':''}>${esc(s.title||'Tela '+(i+1))}</option>`).join('')}</select></label></div>`;
  if(e.type==='reflection')return `<div class="learn-props"><label>Pergunta<textarea id="propReflection">${esc(e.prompt||'')}</textarea></label><label>Placeholder<input id="propReflectionPlaceholder" value="${esc(e.placeholder||'')}"></label></div>`;
  if(e.type==='quiz')return `<div class="learn-props"><label>Pergunta<textarea id="propQuizQuestion">${esc(e.question||'')}</textarea></label>${(e.options||[]).map((o,i)=>`<label>Alternativa ${String.fromCharCode(65+i)}<input data-quiz-option="${i}" value="${esc(o)}"></label>`).join('')}<label>Resposta correta<select id="propQuizCorrect">${(e.options||[]).map((_,i)=>`<option value="${i}" ${Number(e.correct)===i?'selected':''}>${String.fromCharCode(65+i)}</option>`).join('')}</select></label><label>Feedback ao acertar<textarea id="propQuizRight">${esc(e.feedbackRight||'Muito bem!')}</textarea></label><label>Feedback ao errar<textarea id="propQuizWrong">${esc(e.feedbackWrong||'Revise o conteúdo e tente novamente.')}</textarea></label></div>`;
@@ -90,14 +151,14 @@ function properties(e,p){
 function newElement(type){
  if(type==='heading')return{id:uid('el'),type,text:'Novo título'};
  if(type==='text')return{id:uid('el'),type,text:'Digite aqui o conteúdo da sua aula.'};
- if(type==='video')return{id:uid('el'),type,title:'Vídeo da aula',src:'',checkpoints:[]};
+ if(type==='video')return{id:uid('el'),type,title:'Vídeo da aula',sourceMode:'url',src:'',embedCode:'',embedSrc:'',checkpoints:[],support:{enabled:true,start:0,end:0,pauseOnOpen:true,allowQuestion:true,allowSignals:true,allowComments:false,allowMaterial:false,materialLabel:'Acessar material agora',materialUrl:''}};
  if(type==='button')return{id:uid('el'),type,label:'Continuar',targetSlideId:''};
  if(type==='reflection')return{id:uid('el'),type,prompt:'O que você considera mais importante neste ponto?',placeholder:'Escreva sua reflexão...'};
  if(type==='quiz')return{id:uid('el'),type,question:'Qual alternativa está correta?',options:['Alternativa A','Alternativa B','Alternativa C','Alternativa D'],correct:0,feedbackRight:'Muito bem!',feedbackWrong:'Revise o conteúdo e tente novamente.'};
 }
 function createProject(title,context){
  const first={id:uid('slide'),title:'Boas-vindas',elements:[{id:uid('el'),type:'heading',text:title},{id:uid('el'),type:'text',text:'Comece a construir sua experiência educacional.'}]};
- const p={id:uid('learn'),title,context,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),activeSlideId:first.id,slides:[first]};
+ const p={id:uid('learn'),title,context,support:{endpoint:'',defaultPrivacy:'private'},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),activeSlideId:first.id,slides:[first]};
  state.projects.unshift(p);save();activeProjectId=p.id;selectedElementId=null;mode='editor';render();
 }
 function bindLibrary(){
