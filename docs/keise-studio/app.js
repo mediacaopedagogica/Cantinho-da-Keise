@@ -69,7 +69,7 @@ function todayDashboard(){
      <button data-open-mediation="reports"><span>📑</span><b>Gerar relatório da mediação</b><small>${reportReady?'Já há dados para resumir':'Vai ficar pronto quando houver registros'}</small></button>
      <a href="../keise-learning-analytics/"><span>📊</span><b>Abrir Learning Analytics</b><small>Impacto, engajamento e aprendizagem</small></a>
      <button data-new data-area="creative"><span>🎬</span><b>Novo projeto Creative</b><small>Vídeo, podcast ou peça institucional</small></button>
-     <button data-new data-area="learning"><span>📚</span><b>Novo projeto Learning</b><small>Atividade, vídeo interativo ou aula</small></button>
+     <button data-open-learning-new><span>📚</span><b>Novo recurso Learning</b><small>Atividade, vídeo interativo ou aula</small></button>
     </div>
    </article>
   </div>
@@ -134,16 +134,40 @@ function areaView(area){
 }
 function render(){
  const root=$('#viewRoot');
- $('.nav-item[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+ $$('.nav-item[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
  if(view==='mediation'&&window.KeiseMediation){
   root.innerHTML='';
   window.KeiseMediation.mount(root);
   return;
  }
+ if(view==='learning'&&window.KeiseLearning){
+  root.innerHTML='';
+  window.KeiseLearning.mount(root);
+  return;
+ }
  root.innerHTML=view==='home'?home():areaView(view);
- $('[data-go]').forEach(b=>b.onclick=()=>{view=b.dataset.go;render();scrollTo(0,0)});
- $('[data-new]').forEach(b=>b.onclick=()=>openNew(b.dataset.area));
- $('[data-project]').forEach(b=>b.onclick=()=>openProject(b.dataset.project));
+ $$('[data-go]').forEach(b=>b.onclick=()=>{view=b.dataset.go;render();scrollTo({top:0,behavior:'smooth'})});
+ $$('[data-new]').forEach(b=>b.onclick=()=>openNew(b.dataset.area));
+ $$('[data-project]').forEach(b=>b.onclick=()=>openProject(b.dataset.project));
+ $$('[data-open-mediation]').forEach(b=>b.onclick=()=>{
+  view='mediation';
+  render();
+  setTimeout(()=>window.KeiseMediation?.showTab?.(b.dataset.openMediation),0);
+  scrollTo({top:0,behavior:'smooth'});
+ });
+ $$('[data-open-student]').forEach(b=>b.onclick=()=>{
+  view='mediation';
+  render();
+  setTimeout(()=>window.KeiseMediation?.showStudent?.(b.dataset.openStudent),0);
+  scrollTo({top:0,behavior:'smooth'});
+ });
+ $$('[data-open-learning-new]').forEach(b=>b.onclick=()=>{
+  view='learning';
+  render();
+  setTimeout(()=>window.KeiseLearning?.showNew?.(),0);
+  scrollTo({top:0,behavior:'smooth'});
+ });
+ $$('[data-go-projects]').forEach(b=>b.onclick=()=>document.querySelector('.module-grid')?.scrollIntoView({behavior:'smooth',block:'start'}));
 }
 function openNew(area){
  $('#projectArea').value=area||'learning';$('#projectForm').reset();if(area)$('#projectArea').value=area;$('#projectDialog').showModal();setTimeout(()=>$('#projectName').focus(),50)
@@ -160,8 +184,27 @@ function setup(){
  $$('[data-route]').forEach(a=>a.onclick=e=>{e.preventDefault();view=a.dataset.route;render()});
  $('#newProjectBtn').onclick=()=>openNew();
  $$('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
- $('#projectForm').onsubmit=e=>{e.preventDefault();const p={id:id(),name:$('#projectName').value.trim(),area:$('#projectArea').value,context:$('#projectContext').value.trim(),goal:$('#projectGoal').value.trim(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};state.projects.unshift(p);save();$('#projectDialog').close();view=p.area;render();toast('Projeto criado no Keise Studio ✨')};
- $('#backupBtn').onclick=()=>{const payload={schema:'keise-studio/backup-v2',studio:state,mediation:window.KeiseMediation?.exportState?.()||null,exportedAt:new Date().toISOString()};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='keise-studio-backup.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Backup do Studio salvo.')};
+ $('#projectForm').onsubmit=e=>{
+  e.preventDefault();
+  const name=$('#projectName').value.trim(),area=$('#projectArea').value,context=$('#projectContext').value.trim(),goal=$('#projectGoal').value.trim();
+  $('#projectDialog').close();
+  if(area==='learning'&&window.KeiseLearning){
+   view='learning';render();window.KeiseLearning.create(name,context);toast('Recurso Learning criado ✨');return;
+  }
+  const p={id:id(),name,area,context,goal,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  state.projects.unshift(p);save();view=p.area;render();toast('Projeto criado no Keise Studio ✨');
+ };
+ $('#backupBtn').onclick=()=>{
+  const payload={
+   schema:'keise-studio/backup-v3',
+   studio:state,
+   mediation:window.KeiseMediation?.exportState?.()||null,
+   learning:window.KeiseLearning?.exportState?.()||null,
+   exportedAt:new Date().toISOString()
+  };
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='keise-studio-backup.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Backup do Studio salvo.');
+ };
  render();
 }
 setup();
