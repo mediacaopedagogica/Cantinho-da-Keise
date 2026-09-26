@@ -23,7 +23,6 @@ async function deleteAsset(id){const db=await openDb();return new Promise((resol
 async function assetUrl(id){if(urlCache.has(id))return urlCache.get(id);const blob=await getAsset(id);if(!blob)return null;const url=URL.createObjectURL(blob);urlCache.set(id,url);return url}
 function dimensions(aspect){if(aspect==='9:16')return[720,1280];if(aspect==='1:1')return[1080,1080];return[1280,720]}
 function filterCss(p){return `brightness(${p.brightness||100}%) contrast(${p.contrast||100}%) saturate(${p.saturation||100}%)`}
-function presetValues(name){return{name==='cinema'?null:null}}
 function applyPreset(p,name){
  const presets={natural:[100,100,100],cinema:[94,112,88],warm:[103,106,112],cool:[98,108,92],mono:[100,112,0]};
  const v=presets[name]||presets.natural;p.preset=name;p.brightness=v[0];p.contrast=v[1];p.saturation=v[2];touch();
