@@ -149,10 +149,10 @@ function elementMarkup(e,p){
   const supportCount=[support.allowQuestion,support.allowSignals,support.allowComments,support.allowMaterial].filter(Boolean).length;
   return `<div class="learn-render video"><div class="video-label">🎬 ${esc(e.title||'Vídeo')} ${(e.checkpoints||[]).length?`<span class="checkpoint-count">${e.checkpoints.length} pergunta(s)</span>`:''} ${support.enabled&&supportCount?`<span class="support-count">💜 ${supportCount} apoio(s)</span>`:''}</div>${source}</div>`;
  }
- if(e.type==='button')return `<div class="learn-render button-block"><button type="button" disabled>${esc(e.label||'Continuar')}</button><small>${e.targetSlideId?'Vai para outra tela':'Sem destino definido'}</small></div>`;
+ if(e.type==='button')return `<div class="learn-render button-block align-${ensureDesign(p).textAlign}"><button type="button" disabled class="ks-btn ks-btn-${esc(e.style||'primary')} ks-btn-${esc(e.size||'medium')} ${e.fullWidth?'full':''}">${e.icon?`<span class="ks-btn-icon">${esc(e.icon)}</span>`:''}${esc(e.label||'Continuar')}</button><small>${e.targetSlideId?'Vai para outra tela':'Sem destino definido'}</small></div>`;
  if(e.type==='quiz')return `<div class="learn-render quiz"><b>❓ ${esc(e.question||'Sua pergunta')}</b><div>${(e.options||['Opção A','Opção B']).map((o,i)=>`<label><input type="radio" disabled> ${esc(o||'Opção '+(i+1))}</label>`).join('')}</div></div>`;
  if(e.type==='reflection')return `<div class="learn-render reflection"><b>💭 ${esc(e.prompt||'Reflita sobre este ponto.')}</b><textarea disabled placeholder="${esc(e.placeholder||'Escreva sua reflexão...')}"></textarea></div>`;
- if(e.type==='image'){const src=e.assetId?`<img data-learn-local-asset="${esc(e.assetId)}" alt="${esc(e.alt||'')}">`:e.src?`<img src="${esc(e.src)}" alt="${esc(e.alt||'')}">`:'<div class="image-placeholder">🖼️ Adicione uma imagem</div>';return `<figure class="learn-image-preview">${src}${e.caption?`<figcaption>${esc(e.caption)}</figcaption>`:''}</figure>`;}
+ if(e.type==='image'){const src=e.assetId?`<img data-learn-local-asset="${esc(e.assetId)}" alt="${esc(e.alt||'')}">`:e.src?`<img src="${esc(e.src)}" alt="${esc(e.alt||'')}">`:'<div class="image-placeholder">🖼️ Adicione uma imagem</div>';return `<figure class="learn-image-preview fit-${esc(e.fit||'contain')}">${src}${e.caption?`<figcaption>${esc(e.caption)}</figcaption>`:''}${e.audioDescription?`<small class="audio-desc-badge">🔊 audiodescrição</small>`:''}</figure>`;}
  if(e.type==='popup')return `<div class="learn-render popup-preview"><button disabled>🪟 ${esc(e.label||'Abrir')}</button><div><b>${esc(e.title||'Saiba mais')}</b><p>${esc(e.content||'Conteúdo da caixa.')}</p></div></div>`;
  if(e.type==='tabs')return `<div class="learn-render tabs-preview"><div class="tabs-preview-head">${(e.items||[]).map((it,i)=>`<span class="${i===0?'active':''}">${esc(it.title)}</span>`).join('')}</div><p>${esc(e.items?.[0]?.content||'')}</p></div>`;
  if(e.type==='hotspot'){const img=e.assetId?`<img data-learn-local-asset="${esc(e.assetId)}" alt="${esc(e.alt||'Imagem interativa')}">`:e.src?`<img src="${esc(e.src)}" alt="${esc(e.alt||'Imagem interativa')}">`:'<div class="image-placeholder">✨ Adicione a imagem do cenário</div>';return `<div class="hotspot-preview">${img}${(e.hotspots||[]).map((h,i)=>`<span class="hotspot-dot" style="left:${Number(h.x)||50}%;top:${Number(h.y)||50}%">${i+1}</span>`).join('')}</div>`;}
@@ -390,6 +390,17 @@ function renderA11yAudit(p){
  const box=$('#a11yAuditResults',root);if(!box)return;const issues=accessibilityIssues(p);
  box.innerHTML=issues.length?`<div class="a11y-issues">${issues.map(i=>`<article><span>⚠️</span><div><b>${esc(i.where)}</b><p>${esc(i.text)}</p></div></article>`).join('')}</div>`:'<div class="a11y-ok">✅ Nenhum problema básico detectado nesta verificação.</div>';
 }
+function applyEditorDesign(p){
+ const stage=$('.learn-slide-stage',root);if(!stage)return;
+ stage.style.cssText=designVars(p);stage.className='learn-slide-stage layout-'+ensureDesign(p).layout;
+}
+function updateDesignLabels(){
+ const pairs=[['#designHeadingSize','#designHeadingSizeValue','px'],['#designBodySize','#designBodySizeValue','px'],['#designWidth','#designWidthValue','px'],['#designSpacing','#designSpacingValue','px'],['#designCardRadius','#designCardRadiusValue','px'],['#designEmojiScale','#designEmojiScaleValue','%'],['#designMediaRadius','#designMediaRadiusValue','px'],['#designNarrationRate','#designNarrationRateValue','×'],['#designNarrationPitch','#designNarrationPitchValue','']];
+ pairs.forEach(([a,b,s])=>{const n=$(a,root),o=$(b,root);if(n&&o)o.textContent=n.value+s});
+}
+function updateDesignPreview(p){
+ const box=$('#designPreviewStrip',root);if(!box)return;box.style.cssText=designVars(p);box.className='design-preview-strip layout-'+ensureDesign(p).layout;
+}
 function bindEditor(){
  const p=project(),s=slide();if(!p||!s)return;
  $('#learnBack',root).onclick=()=>{mode='library';selectedElementId=null;render()};
@@ -405,6 +416,17 @@ function bindEditor(){
  bindProperties();
  $('#learnPreview',root).onclick=()=>previewProject(p.id);
  $('#learnExport',root).onclick=()=>exportProject(p);
+ $('#learnDesignBtn',root).onclick=()=>{updateDesignPreview(p);$('#learnDesignDialog',root).showModal()};
+ const design=ensureDesign(p);
+ const designMap=[
+  ['#designPrimary','primary','value'],['#designSecondary','secondary','value'],['#designAccent','accent','value'],['#designText','text','value'],['#designBackground','background','value'],['#designSurface','surface','value'],
+  ['#designHeadingFont','headingFont','value'],['#designBodyFont','bodyFont','value'],['#designHeadingSize','headingSize','number'],['#designBodySize','bodySize','number'],
+  ['#designLayout','layout','value'],['#designWidth','contentWidth','number'],['#designSpacing','spacing','number'],['#designAlign','textAlign','value'],
+  ['#designButtonShape','buttonShape','value'],['#designButtonSize','buttonSize','value'],['#designCardRadius','cardRadius','number'],['#designShadow','shadow','value'],
+  ['#designEmojiScale','emojiScale','number'],['#designMediaRadius','mediaRadius','number'],['#designNarrationRate','narrationRate','number'],['#designNarrationPitch','narrationPitch','number']
+ ];
+ designMap.forEach(([sel,key,type])=>{const n=$(sel,root);if(!n)return;const apply=()=>{design[key]=type==='number'?Number(n.value):n.value;touch();updateDesignLabels();updateDesignPreview(p);applyEditorDesign(p)};n.oninput=apply;n.onchange=apply});
+ const showNarr=$('#designShowNarration',root);if(showNarr)showNarr.onchange=()=>{design.showNarration=showNarr.checked;touch();updateDesignPreview(p)};
  $('#learnA11yBtn',root).onclick=()=>{renderA11yAudit(p);$('#learnA11yDialog',root).showModal()};
  const a11y=ensureA11y(p);
  const fs=$('#a11yFontScale',root);if(fs)fs.oninput=()=>{a11y.fontScale=Number(fs.value);$('#a11yFontValue',root).textContent=fs.value+'%';touch()};
@@ -423,8 +445,11 @@ function bindEditor(){
 function bindProperties(){
  const e=element();if(!e)return;
  const bind=(sel,key)=>{const n=$(sel,root);if(n)n.oninput=ev=>{e[key]=ev.target.value;touch();renderCanvasLight()}};
- bind('#propText','text');bind('#propVideoTitle','title');bind('#propVideoSrc','src');bind('#propButtonLabel','label');bind('#propReflection','prompt');bind('#propReflectionPlaceholder','placeholder');bind('#propQuizQuestion','question');bind('#propQuizRight','feedbackRight');bind('#propQuizWrong','feedbackWrong');
+ bind('#propText','text');bind('#propVideoTitle','title');bind('#propVideoSrc','src');bind('#propVideoAudioDescription','audioDescription');bind('#propButtonLabel','label');bind('#propButtonIcon','icon');bind('#propReflection','prompt');bind('#propReflectionPlaceholder','placeholder');bind('#propQuizQuestion','question');bind('#propQuizRight','feedbackRight');bind('#propQuizWrong','feedbackWrong');
  const target=$('#propButtonTarget',root);if(target)target.onchange=ev=>{e.targetSlideId=ev.target.value;touch();renderCanvasLight()};
+ const btnStyle=$('#propButtonStyle',root);if(btnStyle)btnStyle.onchange=()=>{e.style=btnStyle.value;touch();renderCanvasLight()};
+ const btnSize=$('#propButtonSize',root);if(btnSize)btnSize.onchange=()=>{e.size=btnSize.value;touch();renderCanvasLight()};
+ const btnFull=$('#propButtonFull',root);if(btnFull)btnFull.onchange=()=>{e.fullWidth=btnFull.checked;touch();renderCanvasLight()};
  const correct=$('#propQuizCorrect',root);if(correct)correct.onchange=ev=>{e.correct=Number(ev.target.value);touch();renderCanvasLight()};
  $$('[data-quiz-option]',root).forEach(n=>n.oninput=ev=>{e.options[Number(n.dataset.quizOption)]=ev.target.value;touch();renderCanvasLight()});
  if(e.type==='video'){
@@ -448,7 +473,7 @@ function bindProperties(){
   $$('[data-cp-option]',root).forEach(n=>n.oninput=()=>{const cp=e.checkpoints.find(x=>x.id===n.dataset.cpId);if(!cp)return;cp.options[Number(n.dataset.cpOption)]=n.value;touch()});
  }
  if(e.type==='image'){
-  bind('#propImageSrc','src');bind('#propImageAlt','alt');bind('#propImageCaption','caption');
+  bind('#propImageSrc','src');bind('#propImageAlt','alt');bind('#propImageCaption','caption');bind('#propImageAudioDescription','audioDescription');const imageFit=$('#propImageFit',root);if(imageFit)imageFit.onchange=()=>{e.fit=imageFit.value;touch();renderCanvasLight()};
   const choose=$('#propChooseImage',root),file=$('#propImageFile',root);if(choose&&file){choose.onclick=()=>file.click();file.onchange=async ev=>{const picked=ev.target.files?.[0];if(!picked)return;const assetId=uid('img');await putLearnMedia(assetId,picked);e.assetId=assetId;touch();render();toast('Imagem adicionada.')}};
  }
  if(e.type==='popup'){bind('#propPopupLabel','label');bind('#propPopupTitle','title');bind('#propPopupContent','content')}
