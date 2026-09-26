@@ -35,6 +35,33 @@ function disciplines(){return [...new Set(state.students.map(s=>s.discipline).fi
 function activeSignals(s){return Array.isArray(s.signals)?s.signals:[]}
 function due(s){return !!s.nextFollowUpAt&&new Date(s.nextFollowUpAt+'T23:59:59').getTime()<=Date.now()}
 function needsAttention(s){return s.status==='atencao'||s.status==='aguardando'||activeSignals(s).length>0||due(s)}
+const CONTENT_SUPPORT_PREFIX='keise-learning-support-drafts:';
+const CONTENT_STATUS_KEY='keise-mediation-content-status-v1';
+function contentStatusMap(){try{return JSON.parse(localStorage.getItem(CONTENT_STATUS_KEY)||'{}')}catch{return{}}}
+function saveContentStatus(map){localStorage.setItem(CONTENT_STATUS_KEY,JSON.stringify(map))}
+function contentSupportItems(){
+ const out=[],status=contentStatusMap();
+ for(let i=0;i<localStorage.length;i++){
+  const key=localStorage.key(i);if(!key||!key.startsWith(CONTENT_SUPPORT_PREFIX))continue;
+  let list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]')}catch{}
+  if(!Array.isArray(list))continue;
+  list.forEach(item=>out.push({...item,_storageKey:key,_reviewed:!!status[item.id]}));
+ }
+ return out.sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+}
+function contentKindLabel(item){
+ if(item.kind==='question')return'💬 Dúvida no Ponto';
+ if(item.kind==='comment')return'💭 Comentário';
+ if(item.kind==='signal'){
+  const labels={understood:'😊 Entendi',doubt:'🤔 Tenho dúvida',lost:'🧭 Me perdi',deepen:'🚀 Quero aprofundar'};
+  return labels[item.message]||'🧭 Sinal de compreensão';
+ }
+ return item.kind||'Registro';
+}
+function contentContextText(item){
+ const time=item.timestamp!=null?' · '+Number(item.timestamp).toFixed(1)+'s':'';
+ return [item.projectTitle||'Projeto',item.slideTitle||'Tela',(item.videoTitle||'Vídeo')+time].join(' · ');
+}
 function filteredStudents(){
  return state.students.filter(s=>(filterStatus==='all'||s.status===filterStatus)&&(filterDiscipline==='all'||s.discipline===filterDiscipline)).sort((a,b)=>{
   const aa=needsAttention(a)?0:1,bb=needsAttention(b)?0:1;if(aa!==bb)return aa-bb;return (a.name||'').localeCompare(b.name||'','pt-BR')
@@ -116,6 +143,14 @@ function reportText(){
  ].filter(Boolean);
  return parts.join(' ');
 }
+function contentSupportView(){
+ const items=contentSupportItems(),pending=items.filter(x=>!x._reviewed).length;
+ return `
+ <div class="med-section-head"><div><h2>💬 Dúvidas do conteúdo</h2><p>Fila contextual do Learning: projeto, tela, vídeo e ponto exato da experiência.</p></div><div class="med-actions"><span class="content-pending-pill">${pending} para revisar</span><button class="soft" id="medExportContent">Exportar fila</button></div></div>
+ <section class="content-support-note">ℹ️ Nesta fase, esta fila lê registros locais do próprio navegador. Quando o conector online estiver ativo, a mesma estrutura poderá receber dúvidas enviadas de outros dispositivos em tempo real.</section>
+ <section class="panel">
+ ${items.length?`<div class="content-support-list">${items.map(item=>`<article class="content-support-item ${item._reviewed?'reviewed':''}"><div class="content-support-top"><div><span class="content-kind">${contentKindLabel(item)}</span><h3>${esc(item.projectTitle||'Projeto Learning')}</h3><p>${esc(contentContextText(item))}</p></div><time>${fmtDate(item.createdAt,true)}</time></div>${item.kind!=='signal'?'<blockquote>'+esc(item.message||'Sem mensagem')+'</blockquote>':'<div class="content-signal">'+esc(contentKindLabel(item))+'</div>'}<div class="content-support-actions"><button class="tiny" data-content-copy="${esc(item.id)}">Copiar contexto</button><button class="tiny" data-content-review="${esc(item.id)}">${item._reviewed?'Reabrir':'Marcar revisada'}</button></div></article>`).join('')}</div>`:empty('💬','Nenhuma dúvida contextual registrada','Quando uma experiência Learning registrar dúvida, comentário ou sinal local, ele aparece aqui.')}</section>`;
+}
 function reportsView(){
  return `
  <div class="med-section-head"><div><h2>📑 Relatórios da mediação</h2><p>Geração local a partir do que você registrou no Studio.</p></div><div class="med-actions"><button class="soft" id="medExportBtn">Exportar dados</button><button class="soft" id="medImportBtn">Importar backup</button></div></div>
@@ -133,14 +168,16 @@ function reportsView(){
 function empty(icon,title,text){return `<div class="med-empty"><div><span>${icon}</span><b>${title}</b><p>${text}</p></div></div>`}
 
 function shell(){
+ const contentCount=contentSupportItems().filter(x=>!x._reviewed).length;
  return `
  <div class="med-tabs" role="tablist">
   <button class="${tab==='overview'?'active':''}" data-tab="overview">Hoje</button>
   <button class="${tab==='students'?'active':''}" data-tab="students">Estudantes</button>
   <button class="${tab==='followups'?'active':''}" data-tab="followups">Intervenções</button>
+  <button class="${tab==='content'?'active':''}" data-tab="content">Dúvidas do conteúdo${contentCount?` <span class="med-tab-badge">${contentCount}</span>`:''}</button>
   <button class="${tab==='reports'?'active':''}" data-tab="reports">Relatórios</button>
  </div>
- <div id="mediationBody">${tab==='overview'?overview():tab==='students'?studentsView():tab==='followups'?followupsView():reportsView()}</div>
+ <div id="mediationBody">${tab==='overview'?overview():tab==='students'?studentsView():tab==='followups'?followupsView():tab==='content'?contentSupportView():reportsView()}</div>
  <dialog class="dialog med-dialog" id="medStudentDialog"><button class="dialog-close" type="button" data-med-close>×</button><div id="medStudentDialogBody"></div></dialog>
  <dialog class="dialog med-dialog" id="medInterventionDialog"><button class="dialog-close" type="button" data-med-close>×</button><div id="medInterventionDialogBody"></div></dialog>`;
 }
@@ -158,6 +195,9 @@ function bind(){
  const saveBtn=$('#medSaveReport',root);if(saveBtn)saveBtn.onclick=()=>download('relatorio-mediacao-keise-studio.txt',$('#medReportText',root).value,'text/plain;charset=utf-8');
  const exp=$('#medExportBtn',root);if(exp)exp.onclick=exportData;
  const imp=$('#medImportBtn',root),file=$('#medImportFile',root);if(imp&&file){imp.onclick=()=>file.click();file.onchange=()=>importData(file.files?.[0])}
+ $('[data-content-copy]',root).forEach(b=>b.onclick=async()=>{const item=contentSupportItems().find(x=>x.id===b.dataset.contentCopy);if(!item)return;const text=[contentKindLabel(item),contentContextText(item),item.message||''].filter(Boolean).join('\n');await navigator.clipboard.writeText(text);toast('Contexto copiado.')});
+ $('[data-content-review]',root).forEach(b=>b.onclick=()=>{const map=contentStatusMap(),id=b.dataset.contentReview;map[id]=!map[id];saveContentStatus(map);render()});
+ const expContent=$('#medExportContent',root);if(expContent)expContent.onclick=()=>download('keise-studio-duvidas-contextuais.json',JSON.stringify({schema:'keise-learning/support-queue-v1',exportedAt:new Date().toISOString(),items:contentSupportItems()},null,2),'application/json;charset=utf-8');
 }
 function openStudentForm(student=null){
  editingId=student?.id||null;
@@ -220,5 +260,5 @@ async function importData(file){
  if(!file)return;try{const payload=JSON.parse(await file.text());if(payload?.schema!=='keise-studio/mediation-v1'||payload?.data?.version!==1)throw new Error('Arquivo incompatível.');if(!confirm('Importar este backup substituirá os dados locais atuais da Mediação neste navegador. Continuar?'))return;state=payload.data;save();render();toast('Backup importado.')}catch(e){alert('Não foi possível importar: '+e.message)}
 }
 function mount(target){root=target;render()}
-window.KeiseMediation=Object.freeze({mount,exportState:()=>JSON.parse(JSON.stringify(state)),showTab(name){if(['overview','students','followups','reports'].includes(name))tab=name;if(root)render();},showStudent(id){tab='students';if(root){render();setTimeout(()=>openStudent(id),0);}}});
+window.KeiseMediation=Object.freeze({mount,exportState:()=>JSON.parse(JSON.stringify(state)),showTab(name){if(['overview','students','followups','content','reports'].includes(name))tab=name;if(root)render();},showStudent(id){tab='students';if(root){render();setTimeout(()=>openStudent(id),0);}}});
 })();
