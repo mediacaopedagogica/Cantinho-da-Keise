@@ -57,29 +57,7 @@ function library(){
  <div class="learn-section-head"><div><h2>Meus recursos Learning</h2><p>Salvos localmente neste navegador.</p></div><span class="learn-note">v1 · editor por blocos</span></div>
  ${state.projects.length?'<div class="learn-project-grid">'+state.projects.map(p=>`<article class="learn-project-card"><div class="learn-project-icon">📖</div><h3>${esc(p.title)}</h3><p>${esc(p.context||'Sem disciplina/contexto informado')}</p><div class="learn-project-meta"><span>${p.slides.length} tela(s)</span><span>Atualizado ${fmt(p.updatedAt||p.createdAt)}</span></div><div class="learn-card-actions"><button class="soft" data-learn-open="${p.id}">Editar</button><button class="tiny" data-learn-preview="${p.id}">Visualizar</button></div></article>`).join('')+'</div>':empty('🪄','Nenhum recurso criado','Crie o primeiro recurso Learning para começar a montar telas e interações.')}
  <dialog class="dialog" id="learnCreateDialog"><button class="dialog-close" type="button" data-learn-close>×</button><div class="dialog-icon">📚</div><h2>Novo recurso Learning</h2><form id="learnCreateForm"><label>Título<input id="learnTitle" required maxlength="100" placeholder="Ex.: Economia circular — atividade interativa"></label><label>Disciplina/contexto<input id="learnContext" maxlength="120" placeholder="Ex.: Design e Sustentabilidade"></label><div class="dialog-actions"><button class="soft" type="button" data-learn-close>Cancelar</button><button class="primary" type="submit">Criar recurso</button></div></form></dialog>
- <dialog class="dialog wide learn-preview-dialog" id="learnPreviewDialog"><button class="dialog-close" type="button" data-learn-close>×</button><div id="learnPreviewBody"></div></dialog>
-  <dialog class="dialog learn-support-settings-dialog" id="learnSupportSettingsDialog">
-   <button class="dialog-close" type="button" data-learn-close>×</button>
-   <div class="dialog-icon">💜</div><h2>Apoios e Mediação</h2>
-   <p>Defina como dúvidas e comentários podem chegar à mediação. Sem conector, eles ficam claramente salvos como rascunho local no dispositivo do aluno.</p>
-   <form id="learnSupportSettingsForm">
-    <label>Endpoint do conector <span class="field-help">opcional</span><input id="learnSupportEndpoint" type="url" value="${esc(ensureProjectSupport(p).endpoint||'')}" placeholder="https://seu-conector/..."></label>
-    <p class="support-security-note">🔐 Não coloque chave de API ou senha neste campo. O HTML do aluno é público; use apenas um endpoint seguro do seu conector/servidor.</p>
-    <label>Privacidade padrão<select id="learnSupportPrivacy"><option value="private" ${ensureProjectSupport(p).defaultPrivacy!=='class'?'selected':''}>Privado para a mediação</option><option value="class" ${ensureProjectSupport(p).defaultPrivacy==='class'?'selected':''}>Pode integrar discussão da turma</option></select></label>
-    <div class="dialog-actions"><button class="soft" type="button" data-learn-close>Cancelar</button><button class="primary" type="submit">Salvar configuração</button></div>
-   </form>
-  </dialog>
-  <dialog class="dialog wide learn-code-dialog" id="learnCodeDialog">
-   <button class="dialog-close" type="button" data-learn-close>×</button>
-   <div class="dialog-icon">&lt;/&gt;</div><h2>Código e incorporação</h2>
-   <p>O Studio continua visual, mas o código nunca fica escondido de você.</p>
-   <div class="code-tabs">
-    <label>HTML completo<textarea id="learnSourceCode" readonly spellcheck="false"></textarea></label>
-    <div class="code-actions"><button class="soft" type="button" id="learnCopySource">Copiar HTML</button></div>
-    <label>Código para incorporar depois de publicar<textarea id="learnIframeCode" readonly spellcheck="false"></textarea></label>
-    <div class="code-actions"><button class="soft" type="button" id="learnCopyIframe">Copiar iframe</button></div>
-   </div>
-  </dialog>`;
+ <dialog class="dialog wide learn-preview-dialog" id="learnPreviewDialog"><button class="dialog-close" type="button" data-learn-close>×</button><div id="learnPreviewBody"></div></dialog>`;
 }
 function empty(icon,title,text){return `<div class="learn-empty"><div><span>${icon}</span><b>${title}</b><p>${text}</p></div></div>`}
 
@@ -127,6 +105,28 @@ function editor(){
    </aside>
   </div>
   <dialog class="dialog wide learn-preview-dialog" id="learnPreviewDialog"><button class="dialog-close" type="button" data-learn-close>×</button><div id="learnPreviewBody"></div></dialog>
+  <dialog class="dialog learn-support-settings-dialog" id="learnSupportSettingsDialog">
+   <button class="dialog-close" type="button" data-learn-close>×</button>
+   <div class="dialog-icon">💜</div><h2>Apoios e Mediação</h2>
+   <p>Defina como dúvidas e comentários podem chegar à mediação. Sem conector, eles ficam claramente salvos como rascunho local no dispositivo do aluno.</p>
+   <form id="learnSupportSettingsForm">
+    <label>Endpoint do conector <span class="field-help">opcional</span><input id="learnSupportEndpoint" type="url" value="${esc(ensureProjectSupport(p).endpoint||'')}" placeholder="https://seu-conector/..."></label>
+    <p class="support-security-note">🔐 Não coloque chave de API ou senha neste campo. O HTML do aluno é público; use apenas um endpoint seguro do seu conector/servidor.</p>
+    <label>Privacidade padrão<select id="learnSupportPrivacy"><option value="private" ${ensureProjectSupport(p).defaultPrivacy!=='class'?'selected':''}>Privado para a mediação</option><option value="class" ${ensureProjectSupport(p).defaultPrivacy==='class'?'selected':''}>Pode integrar discussão da turma</option></select></label>
+    <div class="dialog-actions"><button class="soft" type="button" data-learn-close>Cancelar</button><button class="primary" type="submit">Salvar configuração</button></div>
+   </form>
+  </dialog>
+  <dialog class="dialog wide learn-code-dialog" id="learnCodeDialog">
+   <button class="dialog-close" type="button" data-learn-close>×</button>
+   <div class="dialog-icon">&lt;/&gt;</div><h2>Código e incorporação</h2>
+   <p>O Studio continua visual, mas o código nunca fica escondido de você.</p>
+   <div class="code-tabs">
+    <label>HTML completo<textarea id="learnSourceCode" readonly spellcheck="false"></textarea></label>
+    <div class="code-actions"><button class="soft" type="button" id="learnCopySource">Copiar HTML</button></div>
+    <label>Código para incorporar depois de publicar<textarea id="learnIframeCode" readonly spellcheck="false"></textarea></label>
+    <div class="code-actions"><button class="soft" type="button" id="learnCopyIframe">Copiar iframe</button></div>
+   </div>
+  </dialog>
  </section>`;
 }
 function toolbox(){
