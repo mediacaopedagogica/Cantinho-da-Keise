@@ -32,7 +32,7 @@ function empty(icon,title,text){return `<div class="learn-empty"><div><span>${ic
 function elementMarkup(e,p){
  if(e.type==='heading')return `<div class="learn-render heading"><h2>${esc(e.text||'Título')}</h2></div>`;
  if(e.type==='text')return `<div class="learn-render text"><p>${esc(e.text||'Digite seu texto.').replace(/\n/g,'<br>')}</p></div>`;
- if(e.type==='video')return `<div class="learn-render video"><div class="video-label">🎬 ${esc(e.title||'Vídeo')}</div>${e.src?`<video controls preload="metadata" src="${esc(e.src)}"></video>`:'<div class="video-placeholder">Adicione a URL do vídeo nas propriedades.</div>'}</div>`;
+ if(e.type==='video')return `<div class="learn-render video"><div class="video-label">🎬 ${esc(e.title||'Vídeo')} ${(e.checkpoints||[]).length?`<span class="checkpoint-count">${e.checkpoints.length} ponto(s) interativo(s)</span>`:''}</div>${e.src?`<video controls preload="metadata" src="${esc(e.src)}"></video>`:'<div class="video-placeholder">Adicione a URL do vídeo nas propriedades.</div>'}</div>`;
  if(e.type==='button')return `<div class="learn-render button-block"><button type="button" disabled>${esc(e.label||'Continuar')}</button><small>${e.targetSlideId?'Vai para outra tela':'Sem destino definido'}</small></div>`;
  if(e.type==='quiz')return `<div class="learn-render quiz"><b>❓ ${esc(e.question||'Sua pergunta')}</b><div>${(e.options||['Opção A','Opção B']).map((o,i)=>`<label><input type="radio" disabled> ${esc(o||'Opção '+(i+1))}</label>`).join('')}</div></div>`;
  if(e.type==='reflection')return `<div class="learn-render reflection"><b>💭 ${esc(e.prompt||'Reflita sobre este ponto.')}</b><textarea disabled placeholder="${esc(e.placeholder||'Escreva sua reflexão...')}"></textarea></div>`;
@@ -60,7 +60,7 @@ function editor(){
       ${s.elements.length?s.elements.map(e=>`<article class="learn-element ${e.id===selectedElementId?'selected':''}" data-learn-element="${e.id}">${elementMarkup(e,p)}<div class="element-tools"><button data-move="up" title="Mover para cima">↑</button><button data-move="down" title="Mover para baixo">↓</button><button data-remove="${e.id}" title="Excluir">×</button></div></article>`).join(''):empty('✨','Tela vazia','Use a biblioteca de blocos à direita para começar.')}
      </div>
     </div>
-   </main>
+   </section>
    <aside class="learn-properties">
     <div class="learn-side-head"><b>${element()?'Propriedades':'Adicionar bloco'}</b>${element()?'<button class="tiny" id="learnCloseProperties">×</button>':''}</div>
     ${element()?properties(element(),p):toolbox()}
@@ -81,7 +81,7 @@ function toolbox(){
 }
 function properties(e,p){
  if(e.type==='heading'||e.type==='text')return `<div class="learn-props"><label>Conteúdo<textarea id="propText" rows="${e.type==='heading'?3:8}">${esc(e.text||'')}</textarea></label><small>As alterações são salvas automaticamente.</small></div>`;
- if(e.type==='video')return `<div class="learn-props"><label>Título<input id="propVideoTitle" value="${esc(e.title||'')}"></label><label>URL do vídeo<input id="propVideoSrc" value="${esc(e.src||'')}" placeholder="https://.../video.mp4"></label><p class="learn-prop-note">Nesta versão, use uma URL de vídeo acessível pelo navegador. Arquivos locais empacotados entram numa próxima etapa.</p></div>`;
+ if(e.type==='video')return `<div class="learn-props"><label>Título<input id="propVideoTitle" value="${esc(e.title||'')}"></label><label>URL do vídeo<input id="propVideoSrc" value="${esc(e.src||'')}" placeholder="https://.../video.mp4"></label><p class="learn-prop-note">Use uma URL de vídeo acessível pelo navegador. O vídeo pode pausar automaticamente nos pontos interativos abaixo.</p><div class="checkpoint-editor"><div class="checkpoint-head"><b>Pontos interativos</b><button class="tiny" type="button" id="propAddCheckpoint">＋ Pergunta no vídeo</button></div>${(e.checkpoints||[]).length?(e.checkpoints||[]).map((cp,n)=>`<section class="checkpoint-item" data-cp="${cp.id}"><div class="checkpoint-item-head"><b>Ponto ${n+1}</b><button class="tiny danger-text" type="button" data-cp-delete="${cp.id}">Excluir</button></div><label>Tempo em segundos<input type="number" min="0" step="1" data-cp-field="at" data-cp-id="${cp.id}" value="${Number(cp.at)||0}"></label><label>Pergunta<textarea data-cp-field="question" data-cp-id="${cp.id}">${esc(cp.question||'')}</textarea></label>${(cp.options||[]).map((o,i)=>`<label>Alternativa ${String.fromCharCode(65+i)}<input data-cp-option="${i}" data-cp-id="${cp.id}" value="${esc(o)}"></label>`).join('')}<label>Resposta correta<select data-cp-field="correct" data-cp-id="${cp.id}">${(cp.options||[]).map((_,i)=>`<option value="${i}" ${Number(cp.correct)===i?'selected':''}>${String.fromCharCode(65+i)}</option>`).join('')}</select></label><label>Se acertar, ir para<select data-cp-field="correctTargetSlideId" data-cp-id="${cp.id}"><option value="">Continuar o vídeo</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map(s=>`<option value="${s.id}" ${cp.correctTargetSlideId===s.id?'selected':''}>${esc(s.title)}</option>`).join('')}</select></label><label>Se errar, ir para<select data-cp-field="wrongTargetSlideId" data-cp-id="${cp.id}"><option value="">Continuar o vídeo</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map(s=>`<option value="${s.id}" ${cp.wrongTargetSlideId===s.id?'selected':''}>${esc(s.title)}</option>`).join('')}</select></label><label>Feedback ao acertar<textarea data-cp-field="feedbackRight" data-cp-id="${cp.id}">${esc(cp.feedbackRight||'Muito bem!')}</textarea></label><label>Feedback ao errar<textarea data-cp-field="feedbackWrong" data-cp-id="${cp.id}">${esc(cp.feedbackWrong||'Revise este trecho e tente novamente.')}</textarea></label></section>`).join(''):'<p class="learn-prop-note">Nenhum ponto interativo ainda. Adicione uma pergunta e escolha em que segundo ela deve aparecer.</p>'}</div></div>`;
  if(e.type==='button')return `<div class="learn-props"><label>Texto do botão<input id="propButtonLabel" value="${esc(e.label||'Continuar')}"></label><label>Ir para<select id="propButtonTarget"><option value="">Sem destino</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map((s,i)=>`<option value="${s.id}" ${e.targetSlideId===s.id?'selected':''}>${esc(s.title||'Tela '+(i+1))}</option>`).join('')}</select></label></div>`;
  if(e.type==='reflection')return `<div class="learn-props"><label>Pergunta<textarea id="propReflection">${esc(e.prompt||'')}</textarea></label><label>Placeholder<input id="propReflectionPlaceholder" value="${esc(e.placeholder||'')}"></label></div>`;
  if(e.type==='quiz')return `<div class="learn-props"><label>Pergunta<textarea id="propQuizQuestion">${esc(e.question||'')}</textarea></label>${(e.options||[]).map((o,i)=>`<label>Alternativa ${String.fromCharCode(65+i)}<input data-quiz-option="${i}" value="${esc(o)}"></label>`).join('')}<label>Resposta correta<select id="propQuizCorrect">${(e.options||[]).map((_,i)=>`<option value="${i}" ${Number(e.correct)===i?'selected':''}>${String.fromCharCode(65+i)}</option>`).join('')}</select></label><label>Feedback ao acertar<textarea id="propQuizRight">${esc(e.feedbackRight||'Muito bem!')}</textarea></label><label>Feedback ao errar<textarea id="propQuizWrong">${esc(e.feedbackWrong||'Revise o conteúdo e tente novamente.')}</textarea></label></div>`;
@@ -90,7 +90,7 @@ function properties(e,p){
 function newElement(type){
  if(type==='heading')return{id:uid('el'),type,text:'Novo título'};
  if(type==='text')return{id:uid('el'),type,text:'Digite aqui o conteúdo da sua aula.'};
- if(type==='video')return{id:uid('el'),type,title:'Vídeo da aula',src:''};
+ if(type==='video')return{id:uid('el'),type,title:'Vídeo da aula',src:'',checkpoints:[]};
  if(type==='button')return{id:uid('el'),type,label:'Continuar',targetSlideId:''};
  if(type==='reflection')return{id:uid('el'),type,prompt:'O que você considera mais importante neste ponto?',placeholder:'Escreva sua reflexão...'};
  if(type==='quiz')return{id:uid('el'),type,question:'Qual alternativa está correta?',options:['Alternativa A','Alternativa B','Alternativa C','Alternativa D'],correct:0,feedbackRight:'Muito bem!',feedbackWrong:'Revise o conteúdo e tente novamente.'};
@@ -130,7 +130,18 @@ function bindProperties(){
  bind('#propText','text');bind('#propVideoTitle','title');bind('#propVideoSrc','src');bind('#propButtonLabel','label');bind('#propReflection','prompt');bind('#propReflectionPlaceholder','placeholder');bind('#propQuizQuestion','question');bind('#propQuizRight','feedbackRight');bind('#propQuizWrong','feedbackWrong');
  const target=$('#propButtonTarget',root);if(target)target.onchange=ev=>{e.targetSlideId=ev.target.value;touch();renderCanvasLight()};
  const correct=$('#propQuizCorrect',root);if(correct)correct.onchange=ev=>{e.correct=Number(ev.target.value);touch();renderCanvasLight()};
- $$('[data-quiz-option]',root).forEach(n=>n.oninput=ev=>{e.options[Number(n.dataset.quizOption)]=ev.target.value;touch();renderCanvasLight()});
+ $('[data-quiz-option]',root).forEach(n=>n.oninput=ev=>{e.options[Number(n.dataset.quizOption)]=ev.target.value;touch();renderCanvasLight()});
+ if(e.type==='video'){
+  e.checkpoints??=[];
+  const add=$('#propAddCheckpoint',root);
+  if(add)add.onclick=()=>{e.checkpoints.push({id:uid('cp'),at:30,question:'Qual alternativa explica melhor o trecho que você acabou de assistir?',options:['Alternativa A','Alternativa B','Alternativa C','Alternativa D'],correct:0,feedbackRight:'Muito bem!',feedbackWrong:'Revise este trecho e tente novamente.',correctTargetSlideId:'',wrongTargetSlideId:''});touch();render()};
+  $('[data-cp-delete]',root).forEach(n=>n.onclick=()=>{e.checkpoints=e.checkpoints.filter(cp=>cp.id!==n.dataset.cpDelete);touch();render()});
+  $('[data-cp-field]',root).forEach(n=>{
+   const apply=()=>{const cp=e.checkpoints.find(x=>x.id===n.dataset.cpId);if(!cp)return;const key=n.dataset.cpField;cp[key]=key==='at'||key==='correct'?Number(n.value):n.value;touch();renderCanvasLight()};
+   n.oninput=apply;n.onchange=apply;
+  });
+  $('[data-cp-option]',root).forEach(n=>n.oninput=()=>{const cp=e.checkpoints.find(x=>x.id===n.dataset.cpId);if(!cp)return;cp.options[Number(n.dataset.cpOption)]=n.value;touch();});
+ }
 }
 function renderCanvasLight(){
  const s=slide(),stage=$('.learn-slide-stage',root);if(!s||!stage)return;
