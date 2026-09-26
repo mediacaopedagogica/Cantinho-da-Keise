@@ -27,12 +27,62 @@ function moduleCard(key){
  const m=MODULES[key],analytics=key==='analytics';
  return `<article class="module-card ${m.cls}"><div class="module-icon">${m.icon}</div><h3>${m.name}</h3><p>${m.desc}</p><div class="chips">${m.chips.map(x=>`<span class="chip">${x}</span>`).join('')}</div><div class="module-footer">${analytics?`<a href="../keise-learning-analytics/">Abrir Analytics →</a>`:`<button data-go="${key}">Explorar →</button>`}<span>✦</span></div></article>`;
 }
+function mediationToday(){
+ const m=window.KeiseMediation?.exportState?.()||{students:[],interventions:[]};
+ const students=Array.isArray(m.students)?m.students:[],interventions=Array.isArray(m.interventions)?m.interventions:[];
+ const due=s=>!!s.nextFollowUpAt&&new Date(String(s.nextFollowUpAt)+'T23:59:59').getTime()<=Date.now();
+ const attention=s=>s.status==='atencao'||s.status==='aguardando'||(Array.isArray(s.signals)&&s.signals.length>0)||due(s);
+ const priority=students.filter(attention);
+ const waiting=students.filter(s=>s.status==='aguardando');
+ const reengaged=students.filter(s=>s.status==='reengajado');
+ const dueList=students.filter(due);
+ const recent=[...interventions].sort((a,b)=>new Date(b.at)-new Date(a.at)).slice(0,4);
+ return{students,interventions,priority,waiting,reengaged,dueList,recent};
+}
+function todayDashboard(){
+ const m=mediationToday(),projects=state.projects||[];
+ const activeProjects=projects.length;
+ const recentProjects=[...projects].sort((a,b)=>new Date(b.updatedAt||b.createdAt)-new Date(a.updatedAt||a.createdAt)).slice(0,4);
+ const priorityText=m.priority.length?m.priority.length+' estudante(s) pedem atenção':'Nenhum estudante sinalizado';
+ const reportReady=m.students.length||m.interventions.length;
+ return `
+ <section class="today-board">
+  <div class="today-board-head"><div><span class="today-kicker">🌤️ Hoje no Keise Studio</span><h2>O que merece sua atenção agora</h2><p>Resumo local calculado a partir dos seus próprios registros. Nada é consultado em segundo plano.</p></div><span class="today-zero">zero polling</span></div>
+  <div class="today-metrics">
+   <button class="today-metric rose" data-open-mediation="students"><span>👩‍🎓</span><b>${m.priority.length}</b><small>estudantes para olhar</small></button>
+   <button class="today-metric amber" data-open-mediation="students"><span>🗓️</span><b>${m.dueList.length}</b><small>retornos previstos</small></button>
+   <button class="today-metric mint" data-open-mediation="followups"><span>💬</span><b>${m.interventions.length}</b><small>intervenções registradas</small></button>
+   <button class="today-metric blue" data-go-projects><span>✨</span><b>${activeProjects}</b><small>projetos no Studio</small></button>
+  </div>
+  <div class="today-columns">
+   <article class="today-card">
+    <div class="today-card-head"><div><h3>💜 Mediação</h3><p>${priorityText}</p></div><button class="tiny" data-open-mediation="overview">Abrir central</button></div>
+    ${m.priority.length?'<div class="today-list">'+m.priority.slice(0,5).map(s=>`<button data-open-student="${s.id}"><span class="today-avatar">${esc((s.name||'?').slice(0,1).toUpperCase())}</span><span><b>${esc(s.name)}</b><small>${esc(s.discipline||'Sem disciplina')}${s.nextFollowUpAt?' · retorno '+fmtDate(s.nextFollowUpAt):''}</small></span><i>›</i></button>`).join('')+'</div>':`<div class="today-empty">🌷 <span>Sem prioridades registradas agora.</span></div>`}
+   </article>
+   <article class="today-card">
+    <div class="today-card-head"><div><h3>🎨 Projetos recentes</h3><p>Rascunhos que você já começou.</p></div><button class="tiny" data-new>＋ Novo</button></div>
+    ${recentProjects.length?'<div class="today-projects">'+recentProjects.map(p=>`<button data-project="${p.id}"><span>${MODULES[p.area]?.icon||'✨'}</span><span><b>${esc(p.name)}</b><small>${esc(areaName(p.area))} · ${fmtDate(p.updatedAt||p.createdAt)}</small></span></button>`).join('')+'</div>':`<div class="today-empty">🪄 <span>Crie seu primeiro projeto quando quiser.</span></div>`}
+   </article>
+   <article class="today-card today-actions-card">
+    <div class="today-card-head"><div><h3>⚡ Ações rápidas</h3><p>Atalhos para o que costuma dar trabalho.</p></div></div>
+    <div class="today-actions">
+     <button data-open-mediation="reports"><span>📑</span><b>Gerar relatório da mediação</b><small>${reportReady?'Já há dados para resumir':'Vai ficar pronto quando houver registros'}</small></button>
+     <a href="../keise-learning-analytics/"><span>📊</span><b>Abrir Learning Analytics</b><small>Impacto, engajamento e aprendizagem</small></a>
+     <button data-new data-area="creative"><span>🎬</span><b>Novo projeto Creative</b><small>Vídeo, podcast ou peça institucional</small></button>
+     <button data-new data-area="learning"><span>📚</span><b>Novo projeto Learning</b><small>Atividade, vídeo interativo ou aula</small></button>
+    </div>
+   </article>
+  </div>
+ </section>`;
+}
 function home(){
- return `<section class="hero"><div><h2>Seu ecossistema criativo começa aqui ✨</h2><p>O Keise Studio será a base para criar recursos educacionais, acompanhar estudantes, produzir vídeos e podcasts, montar experiências imersivas e transformar tudo em evidências profissionais.</p><div class="hero-actions"><button class="primary" data-new>＋ Criar primeiro projeto</button><a class="soft" href="../keise-learning-analytics/" style="text-decoration:none;display:inline-flex;align-items:center">Abrir Analytics</a></div></div><div class="hero-art">🎨🎬🌈</div></section>
+ return `${todayDashboard()}
+ <section class="hero"><div><h2>Seu ecossistema criativo continua crescendo ✨</h2><p>Crie recursos educacionais, acompanhe estudantes, produza vídeos e podcasts, monte experiências imersivas e transforme tudo em evidências profissionais.</p><div class="hero-actions"><button class="primary" data-new>＋ Novo projeto</button><a class="soft" href="../keise-learning-analytics/" style="text-decoration:none;display:inline-flex;align-items:center">Abrir Analytics</a></div></div><div class="hero-art">🎨🎬🌈</div></section>
  <div class="section-head"><div><h2>Áreas do Studio</h2><p>Uma plataforma única, construída por módulos.</p></div><span class="scribble">grande por dentro, leve por fora ♡</span></div>
  <div class="module-grid">${Object.keys(MODULES).map(moduleCard).join('')}</div>
  <section class="panel"><div class="section-head"><div><h2>Meus projetos</h2><p>Rascunhos locais desta primeira versão.</p></div><button class="soft" data-new>＋ Novo</button></div><div style="margin-top:14px">${projectCards()}</div></section>`;
 }
+
 const features={
  mediation:[
   ['👩‍🎓','Alunos acompanhados','Cadastro e histórico de acompanhamento por estudante.'],
