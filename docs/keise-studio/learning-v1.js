@@ -527,8 +527,8 @@ function previewMarkup(p){
    <div class="preview-tool-group"><b>Leitura</b><button data-preview-mode="screen" class="${previewMode==='screen'?'active':''}">✨ Interativa</button><button data-preview-mode="book" class="${previewMode==='book'?'active':''}">📖 Livro</button><button data-preview-mode="magazine" class="${previewMode==='magazine'?'active':''}">📰 Revista</button><button data-preview-mode="reader" class="${previewMode==='reader'?'active':''}">🔤 Leitura limpa</button></div>
   </div>
   <div class="preview-device preview-${previewDevice}">
-   <div class="learn-runtime mode-${previewMode} ${ensureA11y(p).highContrast?'a11y-high-contrast':''} ${ensureA11y(p).reduceMotion?'a11y-reduce-motion':''} ${ensureA11y(p).focusOutline!==false?'a11y-focus':''}" style="--a11y-scale:${ensureA11y(p).fontScale/100}" data-project="${p.id}" data-current="${start.id}" data-mode="${previewMode}">
-    <header><small>Pré-visualização</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'')}</p></header>
+   <div class="learn-runtime mode-${previewMode} layout-${ensureDesign(p).layout} ${ensureA11y(p).highContrast?'a11y-high-contrast':''} ${ensureA11y(p).reduceMotion?'a11y-reduce-motion':''} ${ensureA11y(p).focusOutline!==false?'a11y-focus':''}" style="${designVars(p)};--a11y-scale:${ensureA11y(p).fontScale/100}" data-project="${p.id}" data-current="${start.id}" data-mode="${previewMode}">
+    <header><div class="runtime-header-top"><small>Pré-visualização</small>${ensureDesign(p).showNarration!==false?'<div class="runtime-speech-tools"><button type="button" id="runtimeNarrate">🔊 Narrar esta tela</button><button type="button" id="runtimeStopSpeech">■ Parar</button></div>':''}</div><h2>${esc(p.title)}</h2><p>${esc(p.context||'')}</p></header>
     <main id="learnRuntimeStage"></main>
     <footer><button class="soft" id="runtimePrev" type="button">← Voltar</button><span id="runtimeCounter"></span><button class="primary" id="runtimeNext" type="button">Avançar →</button></footer>
    </div>
@@ -546,7 +546,7 @@ function readingElementMarkup(e){
 }
 function renderReadingRuntime(p,dialog,mode){
  const stage=$('#learnRuntimeStage',dialog),runtime=$('.learn-runtime',dialog),footer=$('footer',runtime),counter=$('#runtimeCounter',dialog);
- runtime.className='learn-runtime mode-'+mode;
+ runtime.className='learn-runtime mode-'+mode+' layout-'+ensureDesign(p).layout+(ensureA11y(p).highContrast?' a11y-high-contrast':'')+(ensureA11y(p).reduceMotion?' a11y-reduce-motion':'')+(ensureA11y(p).focusOutline!==false?' a11y-focus':'');
  stage.innerHTML=`<div class="reading-experience reading-${mode}">${p.slides.map((s,i)=>`<article class="reading-page"><header><span>Capítulo ${i+1}</span><h1>${esc(s.title||'')}</h1></header><div class="reading-content">${s.elements.map(readingElementMarkup).join('')}</div></article>`).join('')}</div>`;
  footer.hidden=true;if(counter)counter.textContent='';hydrateLocalVideos(dialog).catch(()=>{});
 }
@@ -627,7 +627,7 @@ function launchRuntimeEffect(type,host){
 }
 function runtimeImageSource(e){return e.assetId?`<img data-learn-local-asset="${esc(e.assetId)}" alt="${esc(e.alt||'')}">`:e.src?`<img src="${esc(e.src)}" alt="${esc(e.alt||'')}">`:'<div class="runtime-note">Imagem ainda não adicionada.</div>'}
 function advancedRuntimeMarkup(e,p){
- if(e.type==='image')return `<figure class="runtime-image">${runtimeImageSource(e)}${e.caption?`<figcaption>${esc(e.caption)}</figcaption>`:''}</figure>`;
+ if(e.type==='image')return `<figure class="runtime-image fit-${esc(e.fit||'contain')}">${runtimeImageSource(e)}${e.caption?`<figcaption>${esc(e.caption)}</figcaption>`:''}${e.audioDescription?`<button type="button" class="runtime-audio-desc" data-audio-element="${esc(e.id)}">🔊 Ouvir audiodescrição</button>`:''}</figure>`;
  if(e.type==='popup')return `<div class="runtime-popup"><button class="soft runtime-popup-open" type="button">🪟 ${esc(e.label||'Abrir')}</button><div class="runtime-popup-panel" hidden><div><b>${esc(e.title||'Saiba mais')}</b><button class="runtime-popup-close" type="button">×</button></div><p>${esc(e.content||'')}</p></div></div>`;
  if(e.type==='tabs')return `<div class="runtime-tabs"><div class="runtime-tab-buttons">${(e.items||[]).map((it,i)=>`<button type="button" data-tab-index="${i}" class="${i===0?'active':''}">${esc(it.title)}</button>`).join('')}</div><div class="runtime-tab-panel">${esc(e.items?.[0]?.content||'')}</div></div>`;
  if(e.type==='hotspot'){const image=runtimeImageSource(e);return `<div class="runtime-hotspot" data-hotspot-root="${esc(e.id)}"><div class="runtime-hotspot-image">${image}${(e.hotspots||[]).map((h,i)=>`<button type="button" class="runtime-hotspot-dot marker-${esc(h.markerStyle||'glow')}" style="left:${Number(h.x)||50}%;top:${Number(h.y)||50}%;--hot-color:${esc(h.markerColor||'#7d6bd6')}" data-hot-index="${i}" aria-label="${esc(h.label||'Explorar ponto')}">${hotspotMarkerHtml(h,i,'runtime')}</button>`).join('')}</div><div class="runtime-hotspot-panel" hidden></div></div>`;}
@@ -649,18 +649,23 @@ function wireAdvancedRuntime(p,s,dialog,runtime){
  $('.runtime-bingo',dialog).forEach(box=>{const cells=$('[data-bingo-cell]',box),result=$('.bingo-result',box);cells.forEach(b=>b.onclick=()=>b.classList.toggle('marked'));$('.bingo-draw',box).onclick=()=>{const available=cells.filter(x=>!x.classList.contains('marked'));if(!available.length){result.textContent='Todos os itens já foram marcados.';return}const pick=available[Math.floor(Math.random()*available.length)];pick.classList.add('marked');result.textContent='Saiu: '+pick.textContent;launchRuntimeEffect('stars',dialog)};$('.bingo-reset',box).onclick=()=>{cells.forEach(x=>x.classList.remove('marked'));result.textContent=''}});
  $('.runtime-raffle',dialog).forEach(box=>{$('.raffle-run',box).onclick=()=>{let items=[];try{items=JSON.parse(box.dataset.items||'[]')}catch{};if(!items.length)return;const pick=items[Math.floor(Math.random()*items.length)];$('.raffle-result',box).textContent=pick;launchRuntimeEffect('confetti',dialog)}});
  $('.runtime-effect-button',dialog).forEach(b=>b.onclick=()=>launchRuntimeEffect(b.dataset.effect||'confetti',dialog));
-}function renderRuntime(p,dialog){
+}function wireRuntimeSpeech(p,s,dialog){
+ const narrate=$('#runtimeNarrate',dialog);if(narrate)narrate.onclick=()=>{if(!speakText(slideNarrationText(s),p))narrate.textContent='Narração indisponível neste navegador'};
+ const stop=$('#runtimeStopSpeech',dialog);if(stop)stop.onclick=()=>{if('speechSynthesis'in window)speechSynthesis.cancel()};
+ $('[data-audio-element]',dialog).forEach(b=>b.onclick=()=>{const e=s.elements.find(x=>x.id===b.dataset.audioElement);if(e?.audioDescription)speakText(e.audioDescription,p)});
+}
+function renderRuntime(p,dialog){
  const runtime=$('.learn-runtime',dialog),stage=$('#learnRuntimeStage',dialog),mode=runtime?.dataset.mode||'screen';
  if(mode!=='screen'){renderReadingRuntime(p,dialog,mode);return}
- runtime.className='learn-runtime mode-screen';const footer=$('footer',runtime);if(footer)footer.hidden=false;
+ runtime.className='learn-runtime mode-screen layout-'+ensureDesign(p).layout+(ensureA11y(p).highContrast?' a11y-high-contrast':'')+(ensureA11y(p).reduceMotion?' a11y-reduce-motion':'')+(ensureA11y(p).focusOutline!==false?' a11y-focus':'');const footer=$('footer',runtime);if(footer)footer.hidden=false;
  const id=runtime.dataset.current,s=p.slides.find(x=>x.id===id)||p.slides[0],index=p.slides.findIndex(x=>x.id===s.id);
  stage.innerHTML=`<h3>${esc(s.title)}</h3>`+s.elements.map(e=>{
   if(e.type==='heading')return `<h2>${esc(e.text)}</h2>`;
   if(e.type==='text')return `<p>${esc(e.text).replace(/\n/g,'<br>')}</p>`;
-  if(e.type==='video'){const source=e.sourceMode==='embed'&&e.embedSrc?`<iframe class="runtime-video-embed" src="${esc(e.embedSrc)}" title="${esc(e.title||'Vídeo incorporado')}" allowfullscreen loading="lazy"></iframe>`:e.sourceMode==='local'&&e.assetId?`<video controls preload="metadata" data-learn-local-asset="${esc(e.assetId)}"></video>`:e.src?`<video controls preload="metadata" src="${esc(e.src)}"></video>`:'<div class="runtime-note">Vídeo ainda sem origem.</div>';return `<div class="runtime-video" data-video-id="${esc(e.id)}"><b>${esc(e.title||'Vídeo')}</b>${source}<div class="runtime-checkpoint-host" hidden></div>${runtimeSupportMarkup(e)}</div>`;}
+  if(e.type==='video'){const source=e.sourceMode==='embed'&&e.embedSrc?`<iframe class="runtime-video-embed" src="${esc(e.embedSrc)}" title="${esc(e.title||'Vídeo incorporado')}" allowfullscreen loading="lazy"></iframe>`:e.sourceMode==='local'&&e.assetId?`<video controls preload="metadata" data-learn-local-asset="${esc(e.assetId)}"></video>`:e.src?`<video controls preload="metadata" src="${esc(e.src)}"></video>`:'<div class="runtime-note">Vídeo ainda sem origem.</div>';return `<div class="runtime-video" data-video-id="${esc(e.id)}"><b>${esc(e.title||'Vídeo')}</b>${source}${e.audioDescription?`<button type="button" class="runtime-audio-desc" data-audio-element="${esc(e.id)}">🔊 Ouvir audiodescrição</button>`:''}<div class="runtime-checkpoint-host" hidden></div>${runtimeSupportMarkup(e)}</div>`;}
   if(e.type==='reflection')return `<div class="runtime-reflection"><b>${esc(e.prompt)}</b><textarea placeholder="${esc(e.placeholder||'Escreva sua reflexão...')}"></textarea></div>`;
   if(e.type==='quiz')return `<form class="runtime-quiz" data-correct="${Number(e.correct)||0}" data-right="${esc(e.feedbackRight||'Muito bem!')}" data-wrong="${esc(e.feedbackWrong||'Tente novamente.')}"><b>${esc(e.question)}</b>${(e.options||[]).map((o,i)=>`<label><input type="radio" name="q-${esc(e.id)}" value="${i}"> ${esc(o)}</label>`).join('')}<button class="soft runtime-check" type="button">Verificar resposta</button><p class="runtime-feedback" role="status"></p></form>`;
-  if(e.type==='button')return `<button class="primary runtime-jump" data-target="${esc(e.targetSlideId||'')}">${esc(e.label||'Continuar')}</button>`;
+  if(e.type==='button')return `<button class="runtime-jump ks-btn ks-btn-${esc(e.style||'primary')} ks-btn-${esc(e.size||'medium')} ${e.fullWidth?'full':''}" data-target="${esc(e.targetSlideId||'')}">${e.icon?`<span class="ks-btn-icon">${esc(e.icon)}</span>`:''}${esc(e.label||'Continuar')}</button>`;
   return advancedRuntimeMarkup(e,p);
 
  }).join('');
@@ -673,6 +678,7 @@ function wireAdvancedRuntime(p,s,dialog,runtime){
  setupRuntimeVideos(p,s,dialog,runtime);
  setupRuntimeSupport(p,s,dialog);
  wireAdvancedRuntime(p,s,dialog,runtime);
+ wireRuntimeSpeech(p,s,dialog);
  hydrateLocalVideos(dialog).catch(()=>{});
 }
 function previewProject(id){
