@@ -2,7 +2,7 @@
 (()=>{
 const KEY='keise-learning-author-v1';
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
-let root=null,state=load(),mode='library',activeProjectId=null,selectedElementId=null;
+let root=null,state=load(),mode='library',activeProjectId=null,selectedElementId=null,learnMediaUrls=new Map(),recordStream=null,recordRecorder=null,recordChunks=[];
 
 function blank(){return{version:1,projects:[]}}
 function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');return x&&x.version===1?x:blank()}catch{return blank()}}
@@ -48,6 +48,26 @@ async function sendSupportPayload(p,payload){
  saveLocalSupportDraft(p,payload);return{sent:false,mode:'local'};
 }
 
+function openLearnMediaDb(){return new Promise((resolve,reject)=>{const req=indexedDB.open('keise-learning-media-v1',1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('assets'))db.createObjectStore('assets')};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+async function putLearnMedia(id,blob){const db=await openLearnMediaDb();return new Promise((resolve,reject)=>{const tx=db.transaction('assets','readwrite');tx.objectStore('assets').put(blob,id);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}})}
+async function getLearnMedia(id){const db=await openLearnMediaDb();return new Promise((resolve,reject)=>{const tx=db.transaction('assets','readonly'),req=tx.objectStore('assets').get(id);req.onsuccess=()=>{db.close();resolve(req.result||null)};req.onerror=()=>{db.close();reject(req.error)}})}
+async function learnMediaUrl(id){if(!id)return null;if(learnMediaUrls.has(id))return learnMediaUrls.get(id);const blob=await getLearnMedia(id);if(!blob)return null;const url=URL.createObjectURL(blob);learnMediaUrls.set(id,url);return url}
+async function hydrateLocalVideos(scope=root){
+ const nodes=$$('[data-learn-local-asset]',scope);for(const n of nodes){const id=n.dataset.learnLocalAsset,url=await learnMediaUrl(id);if(url)n.src=url;else{n.outerHTML='<div class="runtime-note">Arquivo local não encontrado neste navegador.</div>'}}
+}
+function stopLearningRecordStream(){if(recordStream){recordStream.getTracks().forEach(t=>t.stop());recordStream=null}recordRecorder=null;recordChunks=[]}
+async function openLearningRecorder(e,kind){
+ const dlg=$('#learnRecordDialog',root),preview=$('#learnRecordPreview',root),status=$('#learnRecordStatus',root),start=$('#learnRecordStart',root),stop=$('#learnRecordStop',root),use=$('#learnRecordUse',root);
+ stopLearningRecordStream();recordChunks=[];use.disabled=true;stop.disabled=true;start.disabled=false;status.textContent=kind==='screen'?'Preparando captura de tela...':'Preparando câmera e microfone...';
+ try{
+  recordStream=kind==='screen'?await navigator.mediaDevices.getDisplayMedia({video:true,audio:true}):await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+  preview.srcObject=recordStream;preview.muted=true;dlg.showModal();status.textContent='Pronto para gravar.';
+  start.onclick=()=>{recordChunks=[];const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(x=>MediaRecorder.isTypeSupported(x));recordRecorder=new MediaRecorder(recordStream,mime?{mimeType:mime}:undefined);recordRecorder.ondataavailable=ev=>{if(ev.data?.size)recordChunks.push(ev.data)};recordRecorder.onstop=()=>{use.disabled=!recordChunks.length;status.textContent=recordChunks.length?'Gravação pronta. Clique em “Usar gravação”.':'Nenhum dado gravado.'};recordRecorder.start(250);start.disabled=true;stop.disabled=false;status.textContent='● Gravando...'};
+  stop.onclick=()=>{if(recordRecorder&&recordRecorder.state!=='inactive')recordRecorder.stop();stop.disabled=true};
+  use.onclick=async()=>{const blob=new Blob(recordChunks,{type:recordChunks[0]?.type||'video/webm'}),assetId=uid('media');await putLearnMedia(assetId,blob);e.assetId=assetId;e.sourceMode='local';e.src='';e.embedCode='';e.embedSrc='';touch();stopLearningRecordStream();dlg.close();render();toast('Gravação adicionada ao projeto.')};
+ }catch(err){stopLearningRecordStream();status.textContent='Não foi possível acessar '+(kind==='screen'?'a tela':'a câmera/microfone')+': '+err.message;dlg.showModal()}
+}
+
 function library(){
  return `
  <section class="learn-hero">
@@ -67,7 +87,8 @@ function elementMarkup(e,p){
  if(e.type==='video'){
   const support=ensureVideoSupport(e),source=e.sourceMode==='embed'&&e.embedSrc
    ?`<div class="video-embed-preview"><iframe src="${esc(e.embedSrc)}" title="${esc(e.title||'Vídeo incorporado')}" loading="lazy" allowfullscreen></iframe></div>`
-   :e.src?`<video controls preload="metadata" src="${esc(e.src)}"></video>`:'<div class="video-placeholder">Adicione uma URL ou código de incorporação nas propriedades.</div>';
+   :e.sourceMode==='local'&&e.assetId?`<video controls preload="metadata" data-learn-local-asset="${esc(e.assetId)}"></video>`
+   :e.src?`<video controls preload="metadata" src="${esc(e.src)}"></video>`:'<div class="video-placeholder">Escolha um arquivo, grave agora, cole um link ou código de incorporação.</div>';
   const supportCount=[support.allowQuestion,support.allowSignals,support.allowComments,support.allowMaterial].filter(Boolean).length;
   return `<div class="learn-render video"><div class="video-label">🎬 ${esc(e.title||'Vídeo')} ${(e.checkpoints||[]).length?`<span class="checkpoint-count">${e.checkpoints.length} pergunta(s)</span>`:''} ${support.enabled&&supportCount?`<span class="support-count">💜 ${supportCount} apoio(s)</span>`:''}</div>${source}</div>`;
  }
@@ -127,6 +148,13 @@ function editor(){
     <div class="code-actions"><button class="soft" type="button" id="learnCopyIframe">Copiar iframe</button></div>
    </div>
   </dialog>
+  <dialog class="dialog wide learn-record-dialog" id="learnRecordDialog">
+   <button class="dialog-close" type="button" id="learnRecordClose">×</button>
+   <div class="dialog-icon">🎥</div><h2>Gravar agora</h2>
+   <p id="learnRecordStatus">Preparando...</p>
+   <video id="learnRecordPreview" autoplay playsinline muted></video>
+   <div class="record-actions"><button class="soft" type="button" id="learnRecordStart">● Iniciar gravação</button><button class="soft" type="button" id="learnRecordStop" disabled>■ Parar</button><button class="primary" type="button" id="learnRecordUse" disabled>Usar gravação</button></div>
+  </dialog>
  </section>`;
 }
 function toolbox(){
@@ -145,10 +173,12 @@ function properties(e,p){
   const support=ensureVideoSupport(e);
   return `<div class="learn-props">
    <label>Título<input id="propVideoTitle" value="${esc(e.title||'')}"></label>
-   <label>Origem do vídeo<select id="propVideoSourceMode"><option value="url" ${e.sourceMode!=='embed'?'selected':''}>Link direto / MP4</option><option value="embed" ${e.sourceMode==='embed'?'selected':''}>Código de incorporação</option></select></label>
+   <label>Origem do vídeo<select id="propVideoSourceMode"><option value="url" ${e.sourceMode==='url'||(!e.sourceMode&&!e.assetId)?'selected':''}>🔗 Link direto / MP4</option><option value="local" ${e.sourceMode==='local'?'selected':''}>📁 Arquivo ou gravação local</option><option value="embed" ${e.sourceMode==='embed'?'selected':''}>⌘ Código de incorporação</option></select></label>
    ${e.sourceMode==='embed'
     ?`<label>Código de incorporação<textarea id="propVideoEmbed" rows="5" placeholder='<iframe src="..."></iframe>'>${esc(e.embedCode||'')}</textarea></label><label>Endereço detectado<input id="propVideoEmbedSrc" value="${esc(e.embedSrc||'')}" readonly></label>`
-    :`<label>URL do vídeo<input id="propVideoSrc" value="${esc(e.src||'')}" placeholder="https://.../video.mp4"></label>`}
+    :e.sourceMode==='local'
+      ?`<div class="local-video-actions"><input id="propVideoFile" type="file" accept="video/*" hidden><button class="soft" type="button" id="propChooseVideo">📁 Escolher vídeo</button><button class="soft" type="button" id="propRecordCamera">🎥 Gravar câmera</button><button class="soft" type="button" id="propRecordScreen">🖥 Gravar tela</button></div><p class="learn-prop-note">${e.assetId?'✓ Vídeo local vinculado a este projeto neste navegador.':'Nenhum arquivo local escolhido.'} Para compartilhar em outro dispositivo, futuramente usaremos “Empacotar projeto”.</p>`
+      :`<label>URL do vídeo<input id="propVideoSrc" value="${esc(e.src||'')}" placeholder="https://.../video.mp4"></label>`}
    <div class="support-editor">
     <div class="support-editor-head"><b>💜 Apoios e Mediação</b><label class="support-switch"><input id="supportEnabled" type="checkbox" ${support.enabled?'checked':''}> Ativar</label></div>
     <p class="learn-prop-note">Você decide o que o aluno pode fazer neste vídeo e em qual trecho.</p>
@@ -173,7 +203,7 @@ function properties(e,p){
 function newElement(type){
  if(type==='heading')return{id:uid('el'),type,text:'Novo título'};
  if(type==='text')return{id:uid('el'),type,text:'Digite aqui o conteúdo da sua aula.'};
- if(type==='video')return{id:uid('el'),type,title:'Vídeo da aula',sourceMode:'url',src:'',embedCode:'',embedSrc:'',checkpoints:[],support:{enabled:true,start:0,end:0,pauseOnOpen:true,allowQuestion:true,allowSignals:true,allowComments:false,allowMaterial:false,materialLabel:'Acessar material agora',materialUrl:''}};
+ if(type==='video')return{id:uid('el'),type,title:'Vídeo da aula',sourceMode:'url',src:'',assetId:'',embedCode:'',embedSrc:'',checkpoints:[],support:{enabled:true,start:0,end:0,pauseOnOpen:true,allowQuestion:true,allowSignals:true,allowComments:false,allowMaterial:false,materialLabel:'Acessar material agora',materialUrl:''}};
  if(type==='button')return{id:uid('el'),type,label:'Continuar',targetSlideId:''};
  if(type==='reflection')return{id:uid('el'),type,prompt:'O que você considera mais importante neste ponto?',placeholder:'Escreva sua reflexão...'};
  if(type==='quiz')return{id:uid('el'),type,question:'Qual alternativa está correta?',options:['Alternativa A','Alternativa B','Alternativa C','Alternativa D'],correct:0,feedbackRight:'Muito bem!',feedbackWrong:'Revise o conteúdo e tente novamente.'};
@@ -211,6 +241,7 @@ function bindEditor(){
  $('#learnCopySource',root).onclick=async()=>{await navigator.clipboard.writeText($('#learnSourceCode',root).value);toast('HTML copiado.')};
  $('#learnCopyIframe',root).onclick=async()=>{await navigator.clipboard.writeText($('#learnIframeCode',root).value);toast('Código de incorporação copiado.')};
  $$('[data-learn-close]',root).forEach(b=>b.onclick=()=>b.closest('dialog').close());
+ const recClose=$('#learnRecordClose',root);if(recClose)recClose.onclick=()=>{stopLearningRecordStream();$('#learnRecordDialog',root).close()};
 }
 function bindProperties(){
  const e=element();if(!e)return;
@@ -222,6 +253,10 @@ function bindProperties(){
  if(e.type==='video'){
   e.checkpoints??=[];
   const support=ensureVideoSupport(e),sourceMode=$('#propVideoSourceMode',root);
+  const choose=$('#propChooseVideo',root),file=$('#propVideoFile',root);
+  if(choose&&file){choose.onclick=()=>file.click();file.onchange=async ev=>{const picked=ev.target.files?.[0];if(!picked)return;const assetId=uid('media');await putLearnMedia(assetId,picked);e.assetId=assetId;e.sourceMode='local';touch();render();toast('Vídeo local adicionado.');}};
+  const recCamera=$('#propRecordCamera',root);if(recCamera)recCamera.onclick=()=>openLearningRecorder(e,'camera');
+  const recScreen=$('#propRecordScreen',root);if(recScreen)recScreen.onclick=()=>openLearningRecorder(e,'screen');
   if(sourceMode)sourceMode.onchange=ev=>{e.sourceMode=ev.target.value;touch();render()};
   const embed=$('#propVideoEmbed',root);if(embed)embed.oninput=ev=>{e.embedCode=ev.target.value;e.embedSrc=extractIframeSrc(ev.target.value);touch();const detected=$('#propVideoEmbedSrc',root);if(detected)detected.value=e.embedSrc||'';renderCanvasLight()};
   const supportBinds=[
@@ -324,7 +359,7 @@ function renderRuntime(p,dialog){
  stage.innerHTML=`<h3>${esc(s.title)}</h3>`+s.elements.map(e=>{
   if(e.type==='heading')return `<h2>${esc(e.text)}</h2>`;
   if(e.type==='text')return `<p>${esc(e.text).replace(/\n/g,'<br>')}</p>`;
-  if(e.type==='video'){const source=e.sourceMode==='embed'&&e.embedSrc?`<iframe class="runtime-video-embed" src="${esc(e.embedSrc)}" title="${esc(e.title||'Vídeo incorporado')}" allowfullscreen loading="lazy"></iframe>`:e.src?`<video controls preload="metadata" src="${esc(e.src)}"></video>`:'<div class="runtime-note">Vídeo ainda sem origem.</div>';return `<div class="runtime-video" data-video-id="${esc(e.id)}"><b>${esc(e.title||'Vídeo')}</b>${source}<div class="runtime-checkpoint-host" hidden></div>${runtimeSupportMarkup(e)}</div>`;}
+  if(e.type==='video'){const source=e.sourceMode==='embed'&&e.embedSrc?`<iframe class="runtime-video-embed" src="${esc(e.embedSrc)}" title="${esc(e.title||'Vídeo incorporado')}" allowfullscreen loading="lazy"></iframe>`:e.sourceMode==='local'&&e.assetId?`<video controls preload="metadata" data-learn-local-asset="${esc(e.assetId)}"></video>`:e.src?`<video controls preload="metadata" src="${esc(e.src)}"></video>`:'<div class="runtime-note">Vídeo ainda sem origem.</div>';return `<div class="runtime-video" data-video-id="${esc(e.id)}"><b>${esc(e.title||'Vídeo')}</b>${source}<div class="runtime-checkpoint-host" hidden></div>${runtimeSupportMarkup(e)}</div>`;}
   if(e.type==='reflection')return `<div class="runtime-reflection"><b>${esc(e.prompt)}</b><textarea placeholder="${esc(e.placeholder||'Escreva sua reflexão...')}"></textarea></div>`;
   if(e.type==='quiz')return `<form class="runtime-quiz" data-correct="${Number(e.correct)||0}" data-right="${esc(e.feedbackRight||'Muito bem!')}" data-wrong="${esc(e.feedbackWrong||'Tente novamente.')}"><b>${esc(e.question)}</b>${(e.options||[]).map((o,i)=>`<label><input type="radio" name="q-${esc(e.id)}" value="${i}"> ${esc(o)}</label>`).join('')}<button class="soft runtime-check" type="button">Verificar resposta</button><p class="runtime-feedback" role="status"></p></form>`;
   if(e.type==='button')return `<button class="primary runtime-jump" data-target="${esc(e.targetSlideId||'')}">${esc(e.label||'Continuar')}</button>`;
@@ -338,6 +373,7 @@ function renderRuntime(p,dialog){
  $$('.runtime-jump',dialog).forEach(b=>b.onclick=()=>{if(!b.dataset.target)return;runtime.dataset.current=b.dataset.target;renderRuntime(p,dialog)});
  setupRuntimeVideos(p,s,dialog,runtime);
  setupRuntimeSupport(p,s,dialog);
+ hydrateLocalVideos(dialog).catch(()=>{});
 }
 function previewProject(id){
  const p=state.projects.find(x=>x.id===id);if(!p)return;let dlg=$('#learnPreviewDialog',root);if(!dlg){alert('Abra o recurso para visualizar.');return}$('#learnPreviewBody',dlg).innerHTML=previewMarkup(p);dlg.showModal();renderRuntime(p,dlg);
@@ -354,7 +390,7 @@ function exportedHtml(p){
  function draftKey(){return'keise-learning-support-drafts:'+P.id}
  function saveDraft(payload){let list=[];try{list=JSON.parse(localStorage.getItem(draftKey())||'[]')}catch{}list.push(payload);localStorage.setItem(draftKey(),JSON.stringify(list.slice(-500)))}
  async function sendPayload(payload){const endpoint=projectSupport().endpoint||'';if(endpoint){try{const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw new Error('HTTP '+r.status);return{sent:true}}catch(e){saveDraft(payload);return{sent:false,error:e.message}}}saveDraft(payload);return{sent:false}}
- function sourceMarkup(e){if(e.sourceMode==='embed'&&e.embedSrc)return'<iframe src="'+esc(e.embedSrc)+'" title="'+esc(e.title||'Vídeo incorporado')+'" loading="lazy" allowfullscreen></iframe><p class="screen-embed-note">Em vídeos incorporados, o segundo exato pode depender da plataforma de origem.</p>';if(e.src)return'<video controls preload="metadata" src="'+esc(e.src)+'"></video>';return'<div class="runtime-note">Vídeo ainda sem origem.</div>'}
+ function sourceMarkup(e){if(e.sourceMode==='embed'&&e.embedSrc)return'<iframe src="'+esc(e.embedSrc)+'" title="'+esc(e.title||'Vídeo incorporado')+'" loading="lazy" allowfullscreen></iframe><p class="screen-embed-note">Em vídeos incorporados, o segundo exato pode depender da plataforma de origem.</p>';if(e.sourceMode==='local'&&e.assetId)return'<div class="runtime-note">Este vídeo estava salvo apenas no navegador de quem criou. Use uma URL/incorporação ou o futuro recurso “Empacotar projeto” para publicar a mídia junto.</div>';if(e.src)return'<video controls preload="metadata" src="'+esc(e.src)+'"></video>';return'<div class="runtime-note">Vídeo ainda sem origem.</div>'}
  function supportMarkup(e){const s=supportCfg(e);if(!s.enabled)return'';const a=[];if(s.allowQuestion)a.push('<button type="button" data-support-action="question">💬 Tirar dúvida neste ponto</button>');if(s.allowMaterial&&s.materialUrl)a.push('<button type="button" data-support-action="material">🔎 '+esc(s.materialLabel||'Acessar material agora')+'</button>');if(s.allowComments)a.push('<button type="button" data-support-action="comment">💭 Comentar neste trecho</button>');if(s.allowSignals){a.push('<button type="button" data-support-signal="understood">😊 Entendi</button>','<button type="button" data-support-signal="doubt">🤔 Tenho dúvida</button>','<button type="button" data-support-signal="lost">🧭 Me perdi</button>','<button type="button" data-support-signal="deepen">🚀 Quero aprofundar</button>')}if(!a.length)return'';return'<div class="support-wrap" data-start="'+(Number(s.start)||0)+'" data-end="'+(Number(s.end)||0)+'"><div class="support-bar">'+a.join('')+'</div><div class="support-drawer" hidden></div></div>'}
  function videoMarkup(e){return'<div class="video-wrap" data-video-id="'+esc(e.id)+'"><b>'+esc(e.title||'Vídeo')+'</b>'+sourceMarkup(e)+'<div class="checkpoint-host" hidden></div>'+supportMarkup(e)+'</div>'}
  function elem(e){if(e.type==='heading')return'<h2>'+esc(e.text||'')+'</h2>';if(e.type==='text')return'<p>'+esc(e.text||'').replace(/\\n/g,'<br>')+'</p>';if(e.type==='video')return videoMarkup(e);if(e.type==='reflection')return'<div class="reflection"><b>'+esc(e.prompt||'')+'</b><textarea placeholder="'+esc(e.placeholder||'Escreva...')+'"></textarea></div>';if(e.type==='quiz')return'<div class="quiz" data-correct="'+Number(e.correct||0)+'" data-right="'+esc(e.feedbackRight||'Muito bem!')+'" data-wrong="'+esc(e.feedbackWrong||'Tente novamente.')+'"><b>'+esc(e.question||'')+'</b>'+((e.options||[]).map((o,n)=>'<label><input type="radio" name="q-'+esc(e.id)+'" value="'+n+'"> '+esc(o)+'</label>').join(''))+'<button type="button" class="check">Verificar</button><p class="feedback"></p></div>';if(e.type==='button')return'<button class="jump primary" data-target="'+esc(e.targetSlideId||'')+'">'+esc(e.label||'Continuar')+'</button>';return''}
@@ -369,7 +405,7 @@ function exportedHtml(p){
  <\/script></body></html>`;
 }
 function exportProject(p){const html=exportedHtml(p),blob=new Blob([html],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(p.title||'atividade').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.html';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('HTML exportado.')}
-function render(){if(!root)return;root.innerHTML=mode==='library'?library():editor();mode==='library'?bindLibrary():bindEditor()}
+function render(){if(!root)return;root.innerHTML=mode==='library'?library():editor();mode==='library'?bindLibrary():bindEditor();hydrateLocalVideos(root).catch(()=>{})}
 function mount(target){root=target;render()}
 window.KeiseLearning=Object.freeze({mount,exportState:()=>JSON.parse(JSON.stringify(state)),openProject(id){activeProjectId=id;mode='editor';selectedElementId=null;if(root)render()},create(title,context){createProject(title,context||'')},showNew(){mode='library';if(root){render();setTimeout(()=>$('#learnCreateDialog',root)?.showModal(),0)}}});
 })();
