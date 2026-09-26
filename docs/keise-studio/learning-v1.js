@@ -17,6 +17,48 @@ function touch(){const p=project();if(p)p.updatedAt=new Date().toISOString();sav
 function fmt(v){return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(v))}
 function splitLines(v){return String(v||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean)}
 function ensureA11y(p){p.a11y??={fontScale:100,highContrast:false,reduceMotion:false,focusOutline:true};return p.a11y}
+function ensureDesign(p){
+ p.design??={
+  preset:'pastel',headingFont:'system',bodyFont:'system',headingSize:38,bodySize:16,
+  primary:'#7d84ef',secondary:'#f191b3',accent:'#6fcfb5',text:'#29335d',
+  background:'#ffffff',surface:'#f8f6ff',contentWidth:920,spacing:24,textAlign:'left',
+  buttonShape:'rounded',buttonSize:'medium',cardRadius:16,shadow:'soft',mediaRadius:14,
+  layout:'standard',emojiScale:100,narrationRate:1,narrationPitch:1,showNarration:true
+ };
+ return p.design;
+}
+function fontStack(key){
+ const map={
+  system:'Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+  humanist:'"Trebuchet MS","Segoe UI",Arial,sans-serif',
+  classic:'Georgia,"Times New Roman",serif',
+  editorial:'"Palatino Linotype",Palatino,Georgia,serif',
+  clean:'Arial,Helvetica,sans-serif',
+  mono:'ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace'
+ };
+ return map[key]||map.system;
+}
+function designVars(p){
+ const d=ensureDesign(p),shadow=d.shadow==='none'?'none':d.shadow==='strong'?'0 18px 45px rgba(45,48,85,.18)':'0 10px 28px rgba(55,58,95,.10)';
+ const buttonRadius=d.buttonShape==='pill'?'999px':d.buttonShape==='square'?'4px':d.buttonShape==='soft'?'20px':'11px';
+ return `--ks-primary:${d.primary};--ks-secondary:${d.secondary};--ks-accent:${d.accent};--ks-text:${d.text};--ks-bg:${d.background};--ks-surface:${d.surface};--ks-width:${Number(d.contentWidth)||920}px;--ks-space:${Number(d.spacing)||24}px;--ks-card-radius:${Number(d.cardRadius)||16}px;--ks-media-radius:${Number(d.mediaRadius)||14}px;--ks-shadow:${shadow};--ks-button-radius:${buttonRadius};--ks-heading-font:${fontStack(d.headingFont)};--ks-body-font:${fontStack(d.bodyFont)};--ks-heading-size:${Number(d.headingSize)||38}px;--ks-body-size:${Number(d.bodySize)||16}px;--ks-align:${d.textAlign||'left'};--ks-emoji-scale:${(Number(d.emojiScale)||100)/100}`;
+}
+function slideNarrationText(s){
+ return (s?.elements||[]).map(e=>{
+  if(e.type==='heading'||e.type==='text')return e.text||'';
+  if(e.type==='quiz')return 'Pergunta. '+(e.question||'')+'. '+(e.options||[]).join('. ');
+  if(e.type==='reflection')return 'Para refletir. '+(e.prompt||'');
+  if(e.type==='image')return e.audioDescription||e.alt||e.caption||'';
+  if(e.type==='video')return e.audioDescription||e.title||'';
+  if(e.type==='popup')return (e.title||'')+'. '+(e.content||'');
+  if(e.type==='tabs')return (e.items||[]).map(x=>(x.title||'')+'. '+(x.content||'')).join('. ');
+  return '';
+ }).filter(Boolean).join('. ');
+}
+function speakText(text,p){
+ if(!('speechSynthesis'in window)||!String(text||'').trim())return false;
+ speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);const d=ensureDesign(p);u.lang='pt-BR';u.rate=Number(d.narrationRate)||1;u.pitch=Number(d.narrationPitch)||1;speechSynthesis.speak(u);return true;
+}
 function accessibilityIssues(p){
  const issues=[];
  p.slides.forEach((s,si)=>(s.elements||[]).forEach((e,ei)=>{
@@ -120,6 +162,7 @@ function elementMarkup(e,p){
  if(e.type==='bingo')return `<div class="learn-render bingo-preview">${splitLines(e.itemsText).slice(0,9).map(x=>`<span>${esc(x)}</span>`).join('')}</div>`;
  if(e.type==='raffle')return `<div class="learn-render raffle-preview"><span>🎲</span><div><b>Sorteio</b><p>${splitLines(e.itemsText).length} opção(ões)</p></div></div>`;
  if(e.type==='effect')return `<div class="learn-render effect-preview"><button disabled>✨ ${esc(e.label||'Comemorar')}</button><small>${esc(e.effect||'confetti')}</small></div>`;
+ if(e.type==='emoji')return `<div class="learn-emoji-preview anim-${esc(e.animation||'none')}" style="font-size:${Number(e.size)||72}px" role="img" aria-label="${esc(e.label||e.emoji||'emoji')}">${esc(e.emoji||'✨')}</div>`;
  return '';
 }
 function editor(){
@@ -129,7 +172,7 @@ function editor(){
   <header class="learn-editor-top">
    <button class="soft" id="learnBack">← Projetos</button>
    <div><small>Keise Learning</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'Sem contexto informado')}</p></div>
-   <div class="learn-editor-actions"><span class="learn-save-state">● salvo localmente</span><button class="soft" id="learnSupportSettingsBtn">💜 Apoios</button><button class="soft" id="learnA11yBtn">♿ Acessibilidade</button><button class="soft" id="learnCodeBtn">&lt;/&gt; Código</button><button class="soft" id="learnPreview">▶ Visualizar</button><button class="primary" id="learnExport">Exportar HTML</button></div>
+   <div class="learn-editor-actions"><span class="learn-save-state">● salvo localmente</span><button class="soft" id="learnSupportSettingsBtn">💜 Apoios</button><button class="soft" id="learnDesignBtn">🎨 Design</button><button class="soft" id="learnA11yBtn">♿ Acessibilidade</button><button class="soft" id="learnCodeBtn">&lt;/&gt; Código</button><button class="soft" id="learnPreview">▶ Visualizar</button><button class="primary" id="learnExport">Exportar HTML</button></div>
   </header>
   <div class="learn-workspace">
    <aside class="learn-slides">
@@ -140,7 +183,7 @@ function editor(){
    <section class="learn-canvas-wrap">
     <div class="learn-canvas-head"><div><span>Tela atual</span><input id="learnSlideTitle" maxlength="80" value="${esc(s.title||'')}"></div><button class="tiny danger-text" id="learnDeleteSlide" ${p.slides.length===1?'disabled':''}>Excluir tela</button></div>
     <div class="learn-canvas">
-     <div class="learn-slide-stage">
+     <div class="learn-slide-stage layout-${ensureDesign(p).layout}" style="${designVars(p)}">
       ${s.elements.length?s.elements.map(e=>`<article class="learn-element ${e.id===selectedElementId?'selected':''}" data-learn-element="${e.id}">${elementMarkup(e,p)}<div class="element-tools"><button data-move="up" title="Mover para cima">↑</button><button data-move="down" title="Mover para baixo">↓</button><button data-remove="${e.id}" title="Excluir">×</button></div></article>`).join(''):empty('✨','Tela vazia','Use a biblioteca de blocos à direita para começar.')}
      </div>
     </div>
@@ -173,6 +216,50 @@ function editor(){
     <div class="code-actions"><button class="soft" type="button" id="learnCopyIframe">Copiar iframe</button></div>
    </div>
   </dialog>
+  <dialog class="dialog wide learn-design-dialog" id="learnDesignDialog">
+   <button class="dialog-close" type="button" data-learn-close>×</button>
+   <div class="dialog-icon">🎨</div><h2>Sistema de Design</h2>
+   <p>Defina a identidade visual do projeto inteiro. As alterações aparecem no editor, prévia e publicação.</p>
+   <div class="design-tabs-grid">
+    <section class="design-section"><h3>🎨 Cores</h3>
+     <div class="design-color-grid">
+      <label>Primária<input id="designPrimary" type="color" value="${ensureDesign(p).primary}"></label>
+      <label>Secundária<input id="designSecondary" type="color" value="${ensureDesign(p).secondary}"></label>
+      <label>Destaque<input id="designAccent" type="color" value="${ensureDesign(p).accent}"></label>
+      <label>Texto<input id="designText" type="color" value="${ensureDesign(p).text}"></label>
+      <label>Fundo<input id="designBackground" type="color" value="${ensureDesign(p).background}"></label>
+      <label>Superfície<input id="designSurface" type="color" value="${ensureDesign(p).surface}"></label>
+     </div>
+    </section>
+    <section class="design-section"><h3>🔤 Tipografia</h3>
+     <label>Títulos<select id="designHeadingFont">${[['system','Moderna'],['humanist','Humana'],['classic','Clássica'],['editorial','Editorial'],['clean','Limpa'],['mono','Monoespaçada']].map(([v,l])=>`<option value="${v}" ${ensureDesign(p).headingFont===v?'selected':''}>${l}</option>`).join('')}</select></label>
+     <label>Texto<select id="designBodyFont">${[['system','Moderna'],['humanist','Humana'],['classic','Clássica'],['editorial','Editorial'],['clean','Limpa']].map(([v,l])=>`<option value="${v}" ${ensureDesign(p).bodyFont===v?'selected':''}>${l}</option>`).join('')}</select></label>
+     <div class="design-two"><label>Tamanho título<input id="designHeadingSize" type="range" min="24" max="72" value="${ensureDesign(p).headingSize}"><span id="designHeadingSizeValue">${ensureDesign(p).headingSize}px</span></label><label>Tamanho corpo<input id="designBodySize" type="range" min="12" max="28" value="${ensureDesign(p).bodySize}"><span id="designBodySizeValue">${ensureDesign(p).bodySize}px</span></label></div>
+    </section>
+    <section class="design-section"><h3>📐 Layout</h3>
+     <label>Estilo<select id="designLayout"><option value="standard" ${ensureDesign(p).layout==='standard'?'selected':''}>Padrão</option><option value="cards" ${ensureDesign(p).layout==='cards'?'selected':''}>Cartões</option><option value="editorial" ${ensureDesign(p).layout==='editorial'?'selected':''}>Editorial</option><option value="immersive" ${ensureDesign(p).layout==='immersive'?'selected':''}>Imersivo</option></select></label>
+     <label>Largura do conteúdo<input id="designWidth" type="range" min="600" max="1400" step="20" value="${ensureDesign(p).contentWidth}"><span id="designWidthValue">${ensureDesign(p).contentWidth}px</span></label>
+     <label>Espaçamento<input id="designSpacing" type="range" min="8" max="48" value="${ensureDesign(p).spacing}"><span id="designSpacingValue">${ensureDesign(p).spacing}px</span></label>
+     <label>Alinhamento<select id="designAlign"><option value="left" ${ensureDesign(p).textAlign==='left'?'selected':''}>Esquerda</option><option value="center" ${ensureDesign(p).textAlign==='center'?'selected':''}>Centralizado</option></select></label>
+    </section>
+    <section class="design-section"><h3>🔘 Botões e superfícies</h3>
+     <label>Formato dos botões<select id="designButtonShape"><option value="rounded" ${ensureDesign(p).buttonShape==='rounded'?'selected':''}>Arredondado</option><option value="pill" ${ensureDesign(p).buttonShape==='pill'?'selected':''}>Pílula</option><option value="soft" ${ensureDesign(p).buttonShape==='soft'?'selected':''}>Muito arredondado</option><option value="square" ${ensureDesign(p).buttonShape==='square'?'selected':''}>Reto</option></select></label>
+     <label>Tamanho padrão<select id="designButtonSize"><option value="small" ${ensureDesign(p).buttonSize==='small'?'selected':''}>Pequeno</option><option value="medium" ${ensureDesign(p).buttonSize==='medium'?'selected':''}>Médio</option><option value="large" ${ensureDesign(p).buttonSize==='large'?'selected':''}>Grande</option></select></label>
+     <label>Cantos dos cartões<input id="designCardRadius" type="range" min="0" max="36" value="${ensureDesign(p).cardRadius}"><span id="designCardRadiusValue">${ensureDesign(p).cardRadius}px</span></label>
+     <label>Sombras<select id="designShadow"><option value="none" ${ensureDesign(p).shadow==='none'?'selected':''}>Sem sombra</option><option value="soft" ${ensureDesign(p).shadow==='soft'?'selected':''}>Suave</option><option value="strong" ${ensureDesign(p).shadow==='strong'?'selected':''}>Marcada</option></select></label>
+    </section>
+    <section class="design-section"><h3>🙂 Emojis e mídia</h3>
+     <label>Escala dos emojis<input id="designEmojiScale" type="range" min="60" max="180" value="${ensureDesign(p).emojiScale}"><span id="designEmojiScaleValue">${ensureDesign(p).emojiScale}%</span></label>
+     <label>Cantos de imagens/vídeos<input id="designMediaRadius" type="range" min="0" max="36" value="${ensureDesign(p).mediaRadius}"><span id="designMediaRadiusValue">${ensureDesign(p).mediaRadius}px</span></label>
+    </section>
+    <section class="design-section"><h3>🔊 Narração</h3>
+     <label class="support-check"><input id="designShowNarration" type="checkbox" ${ensureDesign(p).showNarration!==false?'checked':''}> Mostrar botão “Narrar esta tela”</label>
+     <label>Velocidade<input id="designNarrationRate" type="range" min=".6" max="1.8" step=".1" value="${ensureDesign(p).narrationRate}"><span id="designNarrationRateValue">${ensureDesign(p).narrationRate}×</span></label>
+     <label>Tom<input id="designNarrationPitch" type="range" min=".6" max="1.6" step=".1" value="${ensureDesign(p).narrationPitch}"><span id="designNarrationPitchValue">${ensureDesign(p).narrationPitch}</span></label>
+    </section>
+   </div>
+   <div class="design-preview-strip" id="designPreviewStrip"><h3>Exemplo de título</h3><p>Este é um exemplo do corpo do texto.</p><button type="button">Botão de exemplo</button></div>
+  </dialog>
   <dialog class="dialog wide learn-a11y-dialog" id="learnA11yDialog">
    <button class="dialog-close" type="button" data-learn-close>×</button>
    <div class="dialog-icon">♿</div><h2>Acessibilidade</h2>
@@ -199,7 +286,7 @@ function toolbox(){
   <section class="tool-group"><h4>🧱 Conteúdo</h4><div>
    <button data-add-block="heading"><span>🔠</span><b>Título</b><small>Destaque principal</small></button>
    <button data-add-block="text"><span>📝</span><b>Texto</b><small>Conteúdo e explicação</small></button>
-   <button data-add-block="image"><span>🖼️</span><b>Imagem</b><small>Com texto alternativo</small></button>
+   <button data-add-block="image"><span>🖼️</span><b>Imagem</b><small>Alt + audiodescrição</small></button><button data-add-block="emoji"><span>🙂</span><b>Emoji / ícone</b><small>Tamanho e animação</small></button>
    <button data-add-block="video"><span>🎬</span><b>Vídeo / Live</b><small>Upload, gravação, link ou embed</small></button>
    <button data-add-block="button"><span>🔘</span><b>Botão</b><small>Navegação entre telas</small></button>
   </div></section>
@@ -236,7 +323,7 @@ function properties(e,p){
     :e.sourceMode==='local'
       ?`<div class="local-video-actions"><input id="propVideoFile" type="file" accept="video/*" hidden><button class="soft" type="button" id="propChooseVideo">📁 Escolher vídeo</button><button class="soft" type="button" id="propRecordCamera">🎥 Gravar câmera</button><button class="soft" type="button" id="propRecordScreen">🖥 Gravar tela</button></div><p class="learn-prop-note">${e.assetId?'✓ Vídeo local vinculado a este projeto neste navegador.':'Nenhum arquivo local escolhido.'} Para compartilhar em outro dispositivo, futuramente usaremos “Empacotar projeto”.</p>`
       :`<label>URL do vídeo<input id="propVideoSrc" value="${esc(e.src||'')}" placeholder="https://.../video.mp4"></label>`}
-   <div class="support-editor">
+   <label>Audiodescrição do vídeo<textarea id="propVideoAudioDescription" rows="4" placeholder="Descrição verbal opcional do conteúdo visual...">${esc(e.audioDescription||'')}</textarea></label><div class="support-editor">
     <div class="support-editor-head"><b>💜 Apoios e Mediação</b><label class="support-switch"><input id="supportEnabled" type="checkbox" ${support.enabled?'checked':''}> Ativar</label></div>
     <p class="learn-prop-note">Você decide o que o aluno pode fazer neste vídeo e em qual trecho.</p>
     <div class="support-time-grid"><label>Disponível a partir de (s)<input id="supportStart" type="number" min="0" step="1" value="${Number(support.start)||0}"></label><label>Até (s) <small>0 = até o fim</small><input id="supportEnd" type="number" min="0" step="1" value="${Number(support.end)||0}"></label></div>
@@ -252,10 +339,10 @@ function properties(e,p){
    ${(e.checkpoints||[]).length?(e.checkpoints||[]).map((cp,n)=>`<section class="checkpoint-item" data-cp="${cp.id}"><div class="checkpoint-item-head"><b>Ponto ${n+1}</b><button class="tiny danger-text" type="button" data-cp-delete="${cp.id}">Excluir</button></div><label>Tempo em segundos<input type="number" min="0" step="1" data-cp-field="at" data-cp-id="${cp.id}" value="${Number(cp.at)||0}"></label><label>Pergunta<textarea data-cp-field="question" data-cp-id="${cp.id}">${esc(cp.question||'')}</textarea></label>${(cp.options||[]).map((o,i)=>`<label>Alternativa ${String.fromCharCode(65+i)}<input data-cp-option="${i}" data-cp-id="${cp.id}" value="${esc(o)}"></label>`).join('')}<label>Resposta correta<select data-cp-field="correct" data-cp-id="${cp.id}">${(cp.options||[]).map((_,i)=>`<option value="${i}" ${Number(cp.correct)===i?'selected':''}>${String.fromCharCode(65+i)}</option>`).join('')}</select></label><label>Se acertar, ir para<select data-cp-field="correctTargetSlideId" data-cp-id="${cp.id}"><option value="">Continuar o vídeo</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map(s=>`<option value="${s.id}" ${cp.correctTargetSlideId===s.id?'selected':''}>${esc(s.title)}</option>`).join('')}</select></label><label>Se errar, ir para<select data-cp-field="wrongTargetSlideId" data-cp-id="${cp.id}"><option value="">Continuar o vídeo</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map(s=>`<option value="${s.id}" ${cp.wrongTargetSlideId===s.id?'selected':''}>${esc(s.title)}</option>`).join('')}</select></label><label>Feedback ao acertar<textarea data-cp-field="feedbackRight" data-cp-id="${cp.id}">${esc(cp.feedbackRight||'Muito bem!')}</textarea></label><label>Feedback ao errar<textarea data-cp-field="feedbackWrong" data-cp-id="${cp.id}">${esc(cp.feedbackWrong||'Revise este trecho e tente novamente.')}</textarea></label></section>`).join(''):'<p class="learn-prop-note">Nenhuma pergunta programada ainda.</p>'}</div>
   </div>`;
  }
- if(e.type==='button')return `<div class="learn-props"><label>Texto do botão<input id="propButtonLabel" value="${esc(e.label||'Continuar')}"></label><label>Ir para<select id="propButtonTarget"><option value="">Sem destino</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map((s,i)=>`<option value="${s.id}" ${e.targetSlideId===s.id?'selected':''}>${esc(s.title||'Tela '+(i+1))}</option>`).join('')}</select></label></div>`;
+ if(e.type==='button')return `<div class="learn-props"><label>Texto do botão<input id="propButtonLabel" value="${esc(e.label||'Continuar')}"></label><label>Emoji/ícone<input id="propButtonIcon" value="${esc(e.icon||'')}" placeholder="✨"></label><label>Estilo<select id="propButtonStyle"><option value="primary" ${e.style!=='secondary'&&e.style!=='outline'&&e.style!=='ghost'?'selected':''}>Primário</option><option value="secondary" ${e.style==='secondary'?'selected':''}>Secundário</option><option value="outline" ${e.style==='outline'?'selected':''}>Contorno</option><option value="ghost" ${e.style==='ghost'?'selected':''}>Leve</option></select></label><label>Tamanho<select id="propButtonSize"><option value="small" ${e.size==='small'?'selected':''}>Pequeno</option><option value="medium" ${!e.size||e.size==='medium'?'selected':''}>Médio</option><option value="large" ${e.size==='large'?'selected':''}>Grande</option></select></label><label class="support-check"><input id="propButtonFull" type="checkbox" ${e.fullWidth?'checked':''}> Largura total</label><label>Ir para<select id="propButtonTarget"><option value="">Sem destino</option>${p.slides.filter(s=>s.id!==p.activeSlideId).map((s,i)=>`<option value="${s.id}" ${e.targetSlideId===s.id?'selected':''}>${esc(s.title||'Tela '+(i+1))}</option>`).join('')}</select></label></div>`;
  if(e.type==='reflection')return `<div class="learn-props"><label>Pergunta<textarea id="propReflection">${esc(e.prompt||'')}</textarea></label><label>Placeholder<input id="propReflectionPlaceholder" value="${esc(e.placeholder||'')}"></label></div>`;
  if(e.type==='quiz')return `<div class="learn-props"><label>Pergunta<textarea id="propQuizQuestion">${esc(e.question||'')}</textarea></label>${(e.options||[]).map((o,i)=>`<label>Alternativa ${String.fromCharCode(65+i)}<input data-quiz-option="${i}" value="${esc(o)}"></label>`).join('')}<label>Resposta correta<select id="propQuizCorrect">${(e.options||[]).map((_,i)=>`<option value="${i}" ${Number(e.correct)===i?'selected':''}>${String.fromCharCode(65+i)}</option>`).join('')}</select></label><label>Feedback ao acertar<textarea id="propQuizRight">${esc(e.feedbackRight||'Muito bem!')}</textarea></label><label>Feedback ao errar<textarea id="propQuizWrong">${esc(e.feedbackWrong||'Revise o conteúdo e tente novamente.')}</textarea></label></div>`;
- if(e.type==='image')return `<div class="learn-props"><input id="propImageFile" type="file" accept="image/*" hidden><button class="soft" id="propChooseImage" type="button">📁 Escolher imagem</button><label>Ou URL<input id="propImageSrc" value="${esc(e.src||'')}" placeholder="https://..."></label><label>Texto alternativo<input id="propImageAlt" value="${esc(e.alt||'')}" placeholder="Descreva o que a imagem comunica"></label><label>Legenda<input id="propImageCaption" value="${esc(e.caption||'')}"></label></div>`;
+ if(e.type==='image')return `<div class="learn-props"><input id="propImageFile" type="file" accept="image/*" hidden><button class="soft" id="propChooseImage" type="button">📁 Escolher imagem</button><label>Ou URL<input id="propImageSrc" value="${esc(e.src||'')}" placeholder="https://..."></label><label>Texto alternativo<input id="propImageAlt" value="${esc(e.alt||'')}" placeholder="Descreva o que a imagem comunica"></label><label>Legenda<input id="propImageCaption" value="${esc(e.caption||'')}"></label><label>Audiodescrição<textarea id="propImageAudioDescription" rows="5" placeholder="Descreva verbalmente os elementos visuais relevantes...">${esc(e.audioDescription||'')}</textarea></label><label>Enquadramento<select id="propImageFit"><option value="contain" ${e.fit!=='cover'?'selected':''}>Mostrar inteira</option><option value="cover" ${e.fit==='cover'?'selected':''}>Preencher/cortar</option></select></label></div>`;
  if(e.type==='popup')return `<div class="learn-props"><label>Texto do botão<input id="propPopupLabel" value="${esc(e.label||'')}"></label><label>Título da caixa<input id="propPopupTitle" value="${esc(e.title||'')}"></label><label>Conteúdo<textarea id="propPopupContent" rows="8">${esc(e.content||'')}</textarea></label></div>`;
  if(e.type==='tabs')return `<div class="learn-props">${(e.items||[]).map((it,i)=>`<section class="mini-prop-card"><label>Título da aba ${i+1}<input data-tab-title="${i}" value="${esc(it.title||'')}"></label><label>Conteúdo<textarea data-tab-content="${i}">${esc(it.content||'')}</textarea></label></section>`).join('')}</div>`;
  if(e.type==='hotspot')return `<div class="learn-props"><input id="propHotspotImageFile" type="file" accept="image/*" hidden><button class="soft" id="propChooseHotspotImage" type="button">📁 Escolher imagem/cenário</button><label>Ou URL da imagem<input id="propHotspotSrc" value="${esc(e.src||'')}"></label><label>Texto alternativo<input id="propHotspotAlt" value="${esc(e.alt||'')}"></label><div class="checkpoint-head"><b>Pontos brilhantes</b><button class="tiny" id="propAddHotspot" type="button">＋ Ponto</button></div>${(e.hotspots||[]).map((h,i)=>`<section class="mini-prop-card" data-hot-id="${h.id}"><div class="checkpoint-item-head"><b>Ponto ${i+1}</b><button class="tiny danger-text" data-hot-delete="${h.id}" type="button">Excluir</button></div><div class="support-time-grid"><label>X (%)<input data-hot-field="x" data-hot-id="${h.id}" type="number" min="0" max="100" value="${Number(h.x)||50}"></label><label>Y (%)<input data-hot-field="y" data-hot-id="${h.id}" type="number" min="0" max="100" value="${Number(h.y)||50}"></label></div><label>Rótulo<input data-hot-field="label" data-hot-id="${h.id}" value="${esc(h.label||'Explorar')}"></label><label>Ação<select data-hot-field="action" data-hot-id="${h.id}"><option value="popup" ${h.action==='popup'?'selected':''}>Abrir caixa</option><option value="scene" ${h.action==='scene'?'selected':''}>Ir para outra tela</option><option value="effect" ${h.action==='effect'?'selected':''}>Disparar efeito</option><option value="link" ${h.action==='link'?'selected':''}>Abrir link</option></select></label><label>Conteúdo da caixa<textarea data-hot-field="content" data-hot-id="${h.id}">${esc(h.content||'')}</textarea></label><label>Tela de destino<select data-hot-field="targetSlideId" data-hot-id="${h.id}"><option value="">Nenhuma</option>${p.slides.map(s=>`<option value="${s.id}" ${h.targetSlideId===s.id?'selected':''}>${esc(s.title)}</option>`).join('')}</select></label><label>Efeito<select data-hot-field="effect" data-hot-id="${h.id}">${['confetti','applause','gift','stars','balloons','boo'].map(x=>`<option value="${x}" ${h.effect===x?'selected':''}>${x}</option>`).join('')}</select></label><label>Link<input data-hot-field="url" data-hot-id="${h.id}" value="${esc(h.url||'')}"></label></section>`).join('')}</div>`;
@@ -265,13 +352,14 @@ function properties(e,p){
  if(e.type==='bingo')return `<div class="learn-props"><label>Título<input id="propBingoTitle" value="${esc(e.title||'')}"></label><label>Itens <span class="field-help">um por linha</span><textarea id="propBingoItems" rows="12">${esc(e.itemsText||'')}</textarea></label><label>Tamanho<select id="propBingoGrid"><option value="3" ${Number(e.grid)===3?'selected':''}>3 × 3</option><option value="4" ${Number(e.grid)===4?'selected':''}>4 × 4</option></select></label></div>`;
  if(e.type==='raffle')return `<div class="learn-props"><label>Título<input id="propRaffleTitle" value="${esc(e.title||'')}"></label><label>Opções <span class="field-help">uma por linha</span><textarea id="propRaffleItems" rows="12">${esc(e.itemsText||'')}</textarea></label></div>`;
  if(e.type==='effect')return `<div class="learn-props"><label>Texto do botão<input id="propEffectLabel" value="${esc(e.label||'')}"></label><label>Efeito<select id="propEffectType">${['confetti','applause','gift','stars','balloons','boo'].map(x=>`<option value="${x}" ${e.effect===x?'selected':''}>${x}</option>`).join('')}</select></label></div>`;
+ if(e.type==='emoji')return `<div class="learn-props"><label>Emoji/ícone<input id="propEmoji" value="${esc(e.emoji||'✨')}"></label><label>Descrição acessível<input id="propEmojiLabel" value="${esc(e.label||'')}"></label><label>Tamanho<input id="propEmojiSize" type="range" min="24" max="220" value="${Number(e.size)||72}"></label><label>Animação<select id="propEmojiAnimation"><option value="none" ${e.animation==='none'?'selected':''}>Sem animação</option><option value="pulse" ${e.animation==='pulse'?'selected':''}>Pulsar</option><option value="float" ${e.animation==='float'?'selected':''}>Flutuar</option><option value="bounce" ${e.animation==='bounce'?'selected':''}>Pular</option></select></label></div>`;
  return '';
 }
 function newElement(type){
  if(type==='heading')return{id:uid('el'),type,text:'Novo título'};
  if(type==='text')return{id:uid('el'),type,text:'Digite aqui o conteúdo da sua aula.'};
  if(type==='video')return{id:uid('el'),type,title:'Vídeo da aula',sourceMode:'url',src:'',assetId:'',embedCode:'',embedSrc:'',checkpoints:[],support:{enabled:true,start:0,end:0,pauseOnOpen:true,allowQuestion:true,allowSignals:true,allowComments:false,allowMaterial:false,materialLabel:'Acessar material agora',materialUrl:''}};
- if(type==='button')return{id:uid('el'),type,label:'Continuar',targetSlideId:''};
+ if(type==='button')return{id:uid('el'),type,label:'Continuar',icon:'',style:'primary',size:'medium',fullWidth:false,targetSlideId:''};
  if(type==='reflection')return{id:uid('el'),type,prompt:'O que você considera mais importante neste ponto?',placeholder:'Escreva sua reflexão...'};
  if(type==='quiz')return{id:uid('el'),type,question:'Qual alternativa está correta?',options:['Alternativa A','Alternativa B','Alternativa C','Alternativa D'],correct:0,feedbackRight:'Muito bem!',feedbackWrong:'Revise o conteúdo e tente novamente.'};
  if(type==='image')return{id:uid('el'),type,src:'',assetId:'',alt:'',caption:''};
@@ -284,10 +372,11 @@ function newElement(type){
  if(type==='bingo')return{id:uid('el'),type,title:'Bingo da aula',itemsText:'Conceito 1\nConceito 2\nConceito 3\nConceito 4\nConceito 5\nConceito 6\nConceito 7\nConceito 8\nConceito 9',grid:3};
  if(type==='raffle')return{id:uid('el'),type,title:'Sorteio',itemsText:'Opção 1\nOpção 2\nOpção 3\nOpção 4'};
  if(type==='effect')return{id:uid('el'),type,label:'Parabéns!',effect:'confetti'};
+ if(type==='emoji')return{id:uid('el'),type,emoji:'✨',size:72,label:'',animation:'none'};
 }
 function createProject(title,context){
  const first={id:uid('slide'),title:'Boas-vindas',elements:[{id:uid('el'),type:'heading',text:title},{id:uid('el'),type:'text',text:'Comece a construir sua experiência educacional.'}]};
- const p={id:uid('learn'),title,context,support:{endpoint:'',defaultPrivacy:'private'},a11y:{fontScale:100,highContrast:false,reduceMotion:false,focusOutline:true},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),activeSlideId:first.id,slides:[first]};
+ const p={id:uid('learn'),title,context,support:{endpoint:'',defaultPrivacy:'private'},design:{preset:'pastel',headingFont:'system',bodyFont:'system',headingSize:38,bodySize:16,primary:'#7d84ef',secondary:'#f191b3',accent:'#6fcfb5',text:'#29335d',background:'#ffffff',surface:'#f8f6ff',contentWidth:920,spacing:24,textAlign:'left',buttonShape:'rounded',buttonSize:'medium',cardRadius:16,shadow:'soft',mediaRadius:14,layout:'standard',emojiScale:100,narrationRate:1,narrationPitch:1,showNarration:true},a11y:{fontScale:100,highContrast:false,reduceMotion:false,focusOutline:true},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),activeSlideId:first.id,slides:[first]};
  state.projects.unshift(p);save();activeProjectId=p.id;selectedElementId=null;mode='editor';render();
 }
 function bindLibrary(){
