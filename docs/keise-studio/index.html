@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f7f2ff">
+<title>Keise Studio</title>
+<meta name="description" content="Ecossistema pessoal de criação, mediação, produção multimídia, imersão e learning analytics.">
+<link rel="stylesheet" href="./styles.css?v=1">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <a class="brand" href="#home" data-route="home" aria-label="Keise Studio">
+      <span class="brand-flower" aria-hidden="true"><i></i><i></i><i></i><i></i><b>✦</b></span>
+      <span><strong>Keise</strong><small>Studio</small></span>
+    </a>
+    <p class="tagline">criar • mediar • imaginar • transformar ♡</p>
+
+    <nav>
+      <button class="nav-item active" data-view="home"><span>⌂</span>Hoje</button>
+      <button class="nav-item" data-view="mediation"><span>♡</span>Mediação</button>
+      <button class="nav-item" data-view="learning"><span>✎</span>Learning</button>
+      <button class="nav-item" data-view="creative"><span>▶</span>Creative</button>
+      <button class="nav-item" data-view="immersive"><span>◫</span>Immersive</button>
+      <button class="nav-item" data-view="characters"><span>☺</span>Characters</button>
+      <a class="nav-item link" href="../keise-learning-analytics/"><span>▥</span>Analytics</a>
+    </nav>
+
+    <div class="local-note">
+      <span>🔒</span>
+      <div><b>Local-first</b><small>Projetos e rascunhos desta versão ficam neste navegador.</small></div>
+    </div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">☀️ Seu espaço de criação</p>
+        <h1>Keise Studio</h1>
+        <p>Um ecossistema pessoal para educação, criação audiovisual, experiências imersivas e mediação pedagógica.</p>
+      </div>
+      <div class="header-actions">
+        <button class="soft" id="backupBtn" type="button">Salvar backup</button>
+        <button class="primary" id="newProjectBtn" type="button">＋ Novo projeto</button>
+      </div>
+    </header>
+
+    <section class="view" id="viewRoot"></section>
+  </main>
+</div>
+
+<dialog id="projectDialog" class="dialog">
+  <button class="dialog-close" type="button" data-close>×</button>
+  <div class="dialog-icon">✨</div>
+  <h2>Novo projeto</h2>
+  <p>Crie o rascunho dentro do Keise Studio. Nesta primeira versão, os dados ficam salvos localmente no navegador.</p>
+  <form id="projectForm">
+    <label>Nome do projeto
+      <input id="projectName" required maxlength="90" placeholder="Ex.: Vídeo institucional de Natal">
+    </label>
+    <label>Área
+      <select id="projectArea" required>
+        <option value="learning">Learning</option>
+        <option value="creative">Creative</option>
+        <option value="immersive">Immersive</option>
+        <option value="characters">Characters</option>
+        <option value="mediation">Mediação</option>
+      </select>
+    </label>
+    <label>Disciplina ou contexto
+      <input id="projectContext" maxlength="100" placeholder="Ex.: Design e Sustentabilidade">
+    </label>
+    <label>Objetivo
+      <textarea id="projectGoal" maxlength="500" placeholder="O que você quer criar?"></textarea>
+    </label>
+    <div class="dialog-actions">
+      <button class="soft" type="button" data-close>Cancelar</button>
+      <button class="primary" type="submit">Criar projeto</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="detailsDialog" class="dialog wide">
+  <button class="dialog-close" type="button" data-close>×</button>
+  <div id="detailsContent"></div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="./app.js?v=1"></script>
+</body>
+</html>
