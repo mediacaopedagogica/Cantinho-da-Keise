@@ -112,6 +112,13 @@ function editor(){
      <label>Velocidade <span id="teleSpeedValue">${p.teleprompter?.speed||32}</span><input id="teleSpeed" type="range" min="8" max="120" value="${p.teleprompter?.speed||32}"></label>
      <label>Tamanho da letra <span id="teleFontValue">${p.teleprompter?.fontSize||52}px</span><input id="teleFont" type="range" min="28" max="90" value="${p.teleprompter?.fontSize||52}"></label>
      <label>Espaçamento <span id="teleLineValue">${p.teleprompter?.lineHeight||1.55}</span><input id="teleLine" type="range" min="1.2" max="2.2" step=".05" value="${p.teleprompter?.lineHeight||1.55}"></label>
+     <label>Escurecer fundo <span id="teleBgValue">${p.teleprompter?.backgroundOpacity??16}%</span><input id="teleBgOpacity" type="range" min="0" max="85" value="${p.teleprompter?.backgroundOpacity??16}"></label>
+     <label>Desfoque do fundo <span id="teleBlurValue">${p.teleprompter?.blur??6}px</span><input id="teleBlur" type="range" min="0" max="20" value="${p.teleprompter?.blur??6}"></label>
+     <label>Opacidade do texto <span id="teleTextOpacityValue">${p.teleprompter?.textOpacity??96}%</span><input id="teleTextOpacity" type="range" min="45" max="100" value="${p.teleprompter?.textOpacity??96}"></label>
+     <label>Largura da leitura <span id="teleWidthValue">${p.teleprompter?.readingWidth??72}%</span><input id="teleReadingWidth" type="range" min="35" max="96" value="${p.teleprompter?.readingWidth??72}"></label>
+     <label>Posição da faixa<select id="teleVerticalPosition"><option value="upper" ${p.teleprompter?.verticalPosition==='upper'?'selected':''}>Mais perto da câmera</option><option value="center" ${!p.teleprompter?.verticalPosition||p.teleprompter?.verticalPosition==='center'?'selected':''}>Centro</option><option value="lower" ${p.teleprompter?.verticalPosition==='lower'?'selected':''}>Mais abaixo</option></select></label>
+     <label>Cor do texto<select id="teleTextTheme"><option value="light" ${p.teleprompter?.textTheme!=='dark'?'selected':''}>Texto claro</option><option value="dark" ${p.teleprompter?.textTheme==='dark'?'selected':''}>Texto escuro</option></select></label>
+     <label class="creative-check"><input id="teleHideControls" type="checkbox" ${p.teleprompter?.hideControls?'checked':''}> Ocultar controles ao iniciar</label>
      <label>Contagem antes de começar<select id="teleCountdown"><option value="0" ${Number(p.teleprompter?.countdown||3)===0?'selected':''}>Sem contagem</option><option value="3" ${Number(p.teleprompter?.countdown??3)===3?'selected':''}>3 segundos</option><option value="5" ${Number(p.teleprompter?.countdown||3)===5?'selected':''}>5 segundos</option><option value="10" ${Number(p.teleprompter?.countdown||3)===10?'selected':''}>10 segundos</option></select></label>
      <label class="creative-check"><input id="teleMirror" type="checkbox" ${p.teleprompter?.mirror?'checked':''}> Espelhar texto</label>
      <label class="creative-check"><input id="teleCenterGuide" type="checkbox" ${p.teleprompter?.centerGuide!==false?'checked':''}> Mostrar linha-guia central</label>
@@ -121,7 +128,8 @@ function editor(){
    <div class="dialog-actions"><button class="soft" type="button" data-creative-close>Fechar</button><button class="primary" type="button" id="teleOpenRun">▶ Abrir teleprompter</button></div>
   </dialog>
   <dialog id="creativeTeleRun" class="creative-tele-run">
-   <div class="tele-run-toolbar">
+   <button class="tele-show-controls" id="teleShowControls" type="button" hidden>⚙️</button>
+   <div class="tele-run-toolbar" id="teleRunToolbar">
     <div><b>📝 Teleprompter</b><small id="teleRunStatus">pronto</small></div>
     <div class="tele-run-buttons"><button type="button" id="teleRunSlower">− Velocidade</button><button type="button" id="teleRunToggle">▶ Iniciar</button><button type="button" id="teleRunFaster">＋ Velocidade</button><button type="button" id="teleRunRestart">↺ Início</button><button type="button" id="teleRunClose">Fechar</button></div>
    </div>
@@ -142,7 +150,7 @@ function bindLibrary(){
  $$('[data-creative-open]',root).forEach(b=>b.onclick=()=>{activeProjectId=b.dataset.creativeOpen;activeClipId=project()?.clips[0]?.id||null;mode='editor';render()});
 }
 function createProject(title,context,aspect='16:9'){
- const p={id:uid('creative'),title,context,aspect,clips:[],overlayText:'',textPosition:'bottom',textSize:42,preset:'natural',brightness:100,contrast:100,saturation:100,cinemaBars:false,teleprompter:{script:'',speed:32,fontSize:52,lineHeight:1.55,countdown:3,mirror:false,centerGuide:true},liveAssist:{mode:'manual',budgetLimit:0,endpoint:'',provider:'Google Meet',meetingUrl:'',questions:true,materials:true,comments:false,understanding:true,autoCaptions:false,teleprompterFollow:false,markCorrections:true,stopAtBudget:true,sessions:[]},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const p={id:uid('creative'),title,context,aspect,clips:[],overlayText:'',textPosition:'bottom',textSize:42,preset:'natural',brightness:100,contrast:100,saturation:100,cinemaBars:false,teleprompter:{script:'',speed:32,fontSize:52,lineHeight:1.55,countdown:3,mirror:false,centerGuide:true,backgroundOpacity:16,blur:6,textOpacity:96,readingWidth:72,verticalPosition:'center',textTheme:'light',hideControls:false},liveAssist:{mode:'manual',budgetLimit:0,endpoint:'',provider:'Google Meet',meetingUrl:'',questions:true,materials:true,comments:false,understanding:true,autoCaptions:false,teleprompterFollow:false,markCorrections:true,stopAtBudget:true,sessions:[]},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
  state.projects.unshift(p);save();activeProjectId=p.id;activeClipId=null;mode='editor';render();
 }
 async function importFile(file){
@@ -155,7 +163,8 @@ function updatePreview(){
  const p=project(),video=$('#creativeVideo',root),overlay=$('#creativeOverlay',root);if(video)video.style.filter=filterCss(p);if(overlay){overlay.textContent=p.overlayText||'';overlay.className='creative-overlay pos-'+(p.textPosition||'bottom');overlay.style.fontSize=(p.textSize||42)+'px'}
 }
 function ensureTele(p){
- p.teleprompter??={script:'',speed:32,fontSize:52,lineHeight:1.55,countdown:3,mirror:false,centerGuide:true};
+ p.teleprompter??={script:'',speed:32,fontSize:52,lineHeight:1.55,countdown:3,mirror:false,centerGuide:true,backgroundOpacity:16,blur:6,textOpacity:96,readingWidth:72,verticalPosition:'center',textTheme:'light',hideControls:false};
+ if(p.teleprompter.backgroundOpacity==null)p.teleprompter.backgroundOpacity=16;if(p.teleprompter.blur==null)p.teleprompter.blur=6;if(p.teleprompter.textOpacity==null)p.teleprompter.textOpacity=96;if(p.teleprompter.readingWidth==null)p.teleprompter.readingWidth=72;if(!p.teleprompter.verticalPosition)p.teleprompter.verticalPosition='center';if(!p.teleprompter.textTheme)p.teleprompter.textTheme='light';if(p.teleprompter.hideControls==null)p.teleprompter.hideControls=false;
  return p.teleprompter;
 }
 function stopTeleprompter(){
@@ -183,10 +192,20 @@ function startTeleprompter(){
  teleRaf=requestAnimationFrame(teleStep);
 }
 function applyTeleRunAppearance(p){
- const cfg=ensureTele(p),text=$('#teleText',root),scroll=$('#teleScroll',root),guide=$('#teleGuide',root);
+ const cfg=ensureTele(p),text=$('#teleText',root),scroll=$('#teleScroll',root),guide=$('#teleGuide',root),dlg=$('#creativeTeleRun',root),toolbar=$('#teleRunToolbar',root),show=$('#teleShowControls',root);
+ if(dlg){
+  dlg.style.setProperty('--tele-bg-alpha',String((Number(cfg.backgroundOpacity??16))/100));
+  dlg.style.setProperty('--tele-blur',(Number(cfg.blur??6))+'px');
+  dlg.style.setProperty('--tele-text-alpha',String((Number(cfg.textOpacity??96))/100));
+  dlg.style.setProperty('--tele-width',(Number(cfg.readingWidth??72))+'%');
+  dlg.dataset.telePosition=cfg.verticalPosition||'center';
+  dlg.dataset.teleTheme=cfg.textTheme||'light';
+ }
  if(text){text.textContent=cfg.script||'Escreva o roteiro antes de iniciar.';text.style.fontSize=(cfg.fontSize||52)+'px';text.style.lineHeight=String(cfg.lineHeight||1.55);text.style.transform=cfg.mirror?'scaleX(-1)':'none';}
  if(scroll)scroll.scrollTop=0;
  if(guide)guide.hidden=cfg.centerGuide===false;
+ if(toolbar){toolbar.hidden=!!cfg.hideControls}
+ if(show){show.hidden=!cfg.hideControls}
 }
 async function openTeleprompterRun(p){
  const cfg=ensureTele(p),dlg=$('#creativeTeleRun',root),count=$('#teleCountdownOverlay',root);
@@ -214,6 +233,13 @@ function bindTeleprompter(p){
  const speed=$('#teleSpeed',root);if(speed)speed.oninput=e=>{cfg.speed=Number(e.target.value);$('#teleSpeedValue',root).textContent=e.target.value;touch()};
  const font=$('#teleFont',root);if(font)font.oninput=e=>{cfg.fontSize=Number(e.target.value);$('#teleFontValue',root).textContent=e.target.value+'px';touch()};
  const line=$('#teleLine',root);if(line)line.oninput=e=>{cfg.lineHeight=Number(e.target.value);$('#teleLineValue',root).textContent=e.target.value;touch()};
+ const bg=$('#teleBgOpacity',root);if(bg)bg.oninput=e=>{cfg.backgroundOpacity=Number(e.target.value);$('#teleBgValue',root).textContent=e.target.value+'%';touch()};
+ const blur=$('#teleBlur',root);if(blur)blur.oninput=e=>{cfg.blur=Number(e.target.value);$('#teleBlurValue',root).textContent=e.target.value+'px';touch()};
+ const textOpacity=$('#teleTextOpacity',root);if(textOpacity)textOpacity.oninput=e=>{cfg.textOpacity=Number(e.target.value);$('#teleTextOpacityValue',root).textContent=e.target.value+'%';touch()};
+ const width=$('#teleReadingWidth',root);if(width)width.oninput=e=>{cfg.readingWidth=Number(e.target.value);$('#teleWidthValue',root).textContent=e.target.value+'%';touch()};
+ const vpos=$('#teleVerticalPosition',root);if(vpos)vpos.onchange=e=>{cfg.verticalPosition=e.target.value;touch()};
+ const theme=$('#teleTextTheme',root);if(theme)theme.onchange=e=>{cfg.textTheme=e.target.value;touch()};
+ const hideControls=$('#teleHideControls',root);if(hideControls)hideControls.onchange=e=>{cfg.hideControls=e.target.checked;touch()};
  const cd=$('#teleCountdown',root);if(cd)cd.onchange=e=>{cfg.countdown=Number(e.target.value);touch()};
  const mir=$('#teleMirror',root);if(mir)mir.onchange=e=>{cfg.mirror=e.target.checked;touch()};
  const guide=$('#teleCenterGuide',root);if(guide)guide.onchange=e=>{cfg.centerGuide=e.target.checked;touch()};
@@ -223,6 +249,9 @@ function bindTeleprompter(p){
  $('#teleRunFaster',root).onclick=()=>{cfg.speed=Math.min(120,Number(cfg.speed||32)+5);touch();$('#teleRunStatus',root).textContent='velocidade '+cfg.speed};
  $('#teleRunRestart',root).onclick=()=>{const s=$('#teleScroll',root);if(s)s.scrollTop=0;teleLast=0;$('#teleRunStatus',root).textContent='início'};
  $('#teleRunClose',root).onclick=closeTeleprompterRun;
+ const toolbar=$('#teleRunToolbar',root),show=$('#teleShowControls',root);
+ if(show)show.onclick=()=>{if(toolbar)toolbar.hidden=false;show.hidden=true};
+ if(toolbar)toolbar.ondblclick=()=>{toolbar.hidden=true;if(show)show.hidden=false};
  teleKeyHandler=e=>{
   const run=$('#creativeTeleRun',root);if(!run?.open)return;
   if(e.code==='Space'){e.preventDefault();teleRunning?stopTeleprompter():startTeleprompter()}
