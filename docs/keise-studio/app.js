@@ -68,7 +68,7 @@ function todayDashboard(){
     <div class="today-actions">
      <button data-open-mediation="reports"><span>📑</span><b>Gerar relatório da mediação</b><small>${reportReady?'Já há dados para resumir':'Vai ficar pronto quando houver registros'}</small></button>
      <a href="../keise-learning-analytics/"><span>📊</span><b>Abrir Learning Analytics</b><small>Impacto, engajamento e aprendizagem</small></a>
-     <button data-new data-area="creative"><span>🎬</span><b>Novo projeto Creative</b><small>Vídeo, podcast ou peça institucional</small></button>
+     <button data-open-creative-new><span>🎬</span><b>Novo projeto Creative</b><small>Vídeo, podcast ou peça institucional</small></button>
      <button data-open-learning-new><span>📚</span><b>Novo recurso Learning</b><small>Atividade, vídeo interativo ou aula</small></button>
     </div>
    </article>
@@ -145,6 +145,11 @@ function render(){
   window.KeiseLearning.mount(root);
   return;
  }
+ if(view==='creative'&&window.KeiseCreative){
+  root.innerHTML='';
+  window.KeiseCreative.mount(root);
+  return;
+ }
  root.innerHTML=view==='home'?home():areaView(view);
  $$('[data-go]').forEach(b=>b.onclick=()=>{view=b.dataset.go;render();scrollTo({top:0,behavior:'smooth'})});
  $$('[data-new]').forEach(b=>b.onclick=()=>openNew(b.dataset.area));
@@ -161,10 +166,16 @@ function render(){
   setTimeout(()=>window.KeiseMediation?.showStudent?.(b.dataset.openStudent),0);
   scrollTo({top:0,behavior:'smooth'});
  });
- $$('[data-open-learning-new]').forEach(b=>b.onclick=()=>{
+ $('[data-open-learning-new]').forEach(b=>b.onclick=()=>{
   view='learning';
   render();
   setTimeout(()=>window.KeiseLearning?.showNew?.(),0);
+  scrollTo({top:0,behavior:'smooth'});
+ });
+ $('[data-open-creative-new]').forEach(b=>b.onclick=()=>{
+  view='creative';
+  render();
+  setTimeout(()=>window.KeiseCreative?.showNew?.(),0);
   scrollTo({top:0,behavior:'smooth'});
  });
  $$('[data-go-projects]').forEach(b=>b.onclick=()=>document.querySelector('.module-grid')?.scrollIntoView({behavior:'smooth',block:'start'}));
@@ -191,6 +202,9 @@ function setup(){
   if(area==='learning'&&window.KeiseLearning){
    view='learning';render();window.KeiseLearning.create(name,context);toast('Recurso Learning criado ✨');return;
   }
+  if(area==='creative'&&window.KeiseCreative){
+   view='creative';render();window.KeiseCreative.create(name,context,'16:9');toast('Projeto Creative criado 🎬');return;
+  }
   const p={id:id(),name,area,context,goal,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
   state.projects.unshift(p);save();view=p.area;render();toast('Projeto criado no Keise Studio ✨');
  };
@@ -200,6 +214,7 @@ function setup(){
    studio:state,
    mediation:window.KeiseMediation?.exportState?.()||null,
    learning:window.KeiseLearning?.exportState?.()||null,
+   creative:window.KeiseCreative?.exportState?.()||null,
    exportedAt:new Date().toISOString()
   };
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
