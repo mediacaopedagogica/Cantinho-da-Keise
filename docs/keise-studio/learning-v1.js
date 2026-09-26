@@ -556,9 +556,36 @@ function bindProperties(){
  if(e.type==='path'){bind('#propPathTitle','title');bind('#propPathSteps','stepsText')}
  if(e.type==='meeting'){bind('#propMeetingTitle','title');bind('#propMeetingUrl','url');bind('#propMeetingNote','note');const n=$('#propMeetingProvider',root);if(n)n.onchange=()=>{e.provider=n.value;touch();renderCanvasLight()}}
  if(e.type==='escape'){bind('#propEscapePrompt','prompt');bind('#propEscapeAnswer','answer');bind('#propEscapeHint','hint');bind('#propEscapeSuccess','success');const t=$('#propEscapeTarget',root);if(t)t.onchange=()=>{e.targetSlideId=t.value;touch()};const fx=$('#propEscapeEffect',root);if(fx)fx.onchange=()=>{e.effect=fx.value;touch()}}
- if(e.type==='bingo'){bind('#propBingoTitle','title');bind('#propBingoItems','itemsText');const g=$('#propBingoGrid',root);if(g)g.onchange=()=>{e.grid=Number(g.value);touch();renderCanvasLight()}}
- if(e.type==='raffle'){bind('#propRaffleTitle','title');bind('#propRaffleItems','itemsText')}
+ if(e.type==='bingo'){
+  bind('#propBingoTitle','title');bind('#propBingoItems','itemsText');
+  const mode=$('#propBingoMode',root);if(mode)mode.onchange=()=>{e.bingoMode=mode.value;e.cards=[];touch();render()};
+  const from=$('#propBingoFrom',root);if(from)from.oninput=()=>{e.numberFrom=Number(from.value)||1;e.cards=[];touch()};
+  const to=$('#propBingoTo',root);if(to)to.oninput=()=>{e.numberTo=Number(to.value)||75;e.cards=[];touch()};
+  const g=$('#propBingoGrid',root);if(g)g.onchange=()=>{e.grid=Number(g.value);e.cards=[];touch();renderCanvasLight()};
+  const cc=$('#propBingoCardCount',root);if(cc)cc.oninput=()=>{e.cardCount=Math.max(1,Math.min(50,Number(cc.value)||1));touch()};
+  const th=$('#propBingoTheme',root);if(th)th.onchange=()=>{e.bingoTheme=th.value;touch();renderCanvasLight()};
+  const free=$('#propBingoFree',root);if(free)free.onchange=()=>{e.freeCenter=free.checked;e.cards=[];touch();renderCanvasLight()};
+  $('#propGenerateBingoCards',root)?.addEventListener('click',()=>{generateBingoCards(e,e.cardCount||6);touch();render();toast('Cartelas de bingo geradas.')});
+ }
+ if(e.type==='raffle'){
+  bind('#propRaffleTitle','title');bind('#propRaffleItems','itemsText');bind('#propWheelCenter','centerLabel');
+  const th=$('#propWheelTheme',root);if(th)th.onchange=()=>{e.wheelTheme=th.value;touch();renderCanvasLight()};
+  const sec=$('#propWheelSeconds',root);if(sec)sec.oninput=()=>{e.spinSeconds=Number(sec.value)||4;touch()};
+  const link=$('#propWheelOpenLink',root);if(link)link.onchange=()=>{e.openLinkAfter=link.checked;touch()};
+ }
+ if(e.type==='fortune'){
+  bind('#propFortuneTitle','title');bind('#propFortuneMessages','messagesText');
+  const th=$('#propFortuneTheme',root);if(th)th.onchange=()=>{e.cookieTheme=th.value;touch();renderCanvasLight()};
+  const rm=$('#propFortuneMode',root);if(rm)rm.onchange=()=>{e.revealMode=rm.value;touch()};
+  const cf=$('#propFortuneConfetti',root);if(cf)cf.onchange=()=>{e.celebrate=cf.checked;touch()};
+ }
+ if(e.type==='phone'){
+  bind('#propPhoneName','name');bind('#propPhoneHandle','handle');bind('#propPhoneHeadline','headline');bind('#propPhoneBio','bio');bind('#propPhonePost','postText');bind('#propPhoneImageUrl','imageUrl');bind('#propPhoneActionLabel','actionLabel');bind('#propPhoneActionUrl','actionUrl');
+  const tp=$('#propPhoneTemplate',root);if(tp)tp.onchange=()=>{e.template=tp.value;touch();renderCanvasLight()};
+  const choose=$('#propPhoneChooseMedia',root),file=$('#propPhoneMediaFile',root);if(choose&&file){choose.onclick=()=>file.click();file.onchange=async()=>{const picked=file.files?.[0];if(!picked)return;const assetId=uid('phone');await putLearnMedia(assetId,picked);e.assetId=assetId;touch();render();toast('Mídia adicionada ao simulador de celular.')}};
+ }
  if(e.type==='effect'){bind('#propEffectLabel','label');const fx=$('#propEffectType',root);if(fx)fx.onchange=()=>{e.effect=fx.value;touch();renderCanvasLight()}}
+ if(e.type==='emoji'){bind('#propEmoji','emoji');bind('#propEmojiLabel','label');const sz=$('#propEmojiSize',root);if(sz)sz.oninput=()=>{e.size=Number(sz.value);touch();renderCanvasLight()};const an=$('#propEmojiAnimation',root);if(an)an.onchange=()=>{e.animation=an.value;touch();renderCanvasLight()}}
 }
 function renderCanvasLight(){
  const s=slide(),stage=$('.learn-slide-stage',root);if(!s||!stage)return;
