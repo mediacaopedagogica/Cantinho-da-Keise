@@ -813,6 +813,70 @@ function wireAdvancedRuntime(p,s,dialog,runtime){
  $('.runtime-bingo',dialog).forEach(box=>{const cells=$('[data-bingo-cell]',box),result=$('.bingo-result',box);cells.forEach(b=>b.onclick=()=>b.classList.toggle('marked'));$('.bingo-draw',box).onclick=()=>{const available=cells.filter(x=>!x.classList.contains('marked'));if(!available.length){result.textContent='Todos os itens já foram marcados.';return}const pick=available[Math.floor(Math.random()*available.length)];pick.classList.add('marked');result.textContent='Saiu: '+pick.textContent;launchRuntimeEffect('stars',dialog)};$('.bingo-reset',box).onclick=()=>{cells.forEach(x=>x.classList.remove('marked'));result.textContent=''}});
  $('.runtime-raffle',dialog).forEach(box=>{$('.raffle-run',box).onclick=()=>{let items=[];try{items=JSON.parse(box.dataset.items||'[]')}catch{};if(!items.length)return;const pick=items[Math.floor(Math.random()*items.length)];$('.raffle-result',box).textContent=pick;launchRuntimeEffect('confetti',dialog)}});
  $('.runtime-effect-button',dialog).forEach(b=>b.onclick=()=>launchRuntimeEffect(b.dataset.effect||'confetti',dialog));
+
+ $$('.runtime-dice',dialog).forEach(box=>{
+  const btn=$('.dice-roll',box),out=$('.dice-result',box),dice=$$('.dice-3d',box),hand=$('.dice-throw-hand',box);
+  btn.onclick=()=>{
+   btn.disabled=true;out.textContent='';
+   if(hand)hand.classList.add('throwing');
+   dice.forEach((d,i)=>{
+    d.classList.remove('rolling');void d.offsetWidth;d.classList.add('rolling');
+    const value=1+Math.floor(Math.random()*(Number(box.dataset.sides)||6));
+    setTimeout(()=>{
+     d.querySelector('span').textContent=value;d.dataset.value=value;
+     if(i===dice.length-1){
+      const vals=dice.map(x=>Number(x.dataset.value)||0);
+      out.textContent='Resultado: '+vals.join(' + ')+(vals.length>1?' = '+vals.reduce((a,b)=>a+b,0):'');
+      btn.disabled=false;if(hand)hand.classList.remove('throwing');
+     }
+    },900+i*120);
+   });
+  };
+ });
+
+ $$('.runtime-tv',dialog).forEach(box=>{
+  const el=s.elements.find(x=>x.id===box.dataset.tvId);if(!el)return;
+  const screen=$('.runtime-tv-screen',box),label=$('[data-tv-channel-label]',box),title=$('[data-tv-title]',box),time=$('[data-tv-time]',box),qBtn=$('[data-tv-question]',box),qBox=$('.tv-question-box',box);
+  let current=0,powered=true;
+  const getChannel=()=>el.channels?.[current];
+  const parseRanges=v=>String(v||'').split(',').map(x=>x.trim()).filter(Boolean).map(x=>x.split('-').map(Number)).filter(x=>x[1]>x[0]);
+
+  const renderChannel=async()=>{
+   const ch=getChannel();if(!ch)return;
+   label.textContent=ch.number||String(current+1);title.textContent=ch.title||'Canal';qBtn.hidden=ch.allowQuestions===false;qBox.hidden=true;screen.innerHTML='';
+   if(!powered){screen.innerHTML='<div class="tv-off"></div>';time.textContent='desligada';return}
+   if(ch.sourceMode==='embed'&&ch.embedSrc){
+    screen.innerHTML=`<iframe src="${esc(ch.embedSrc)}" allowfullscreen title="${esc(ch.title||'Canal')}"></iframe>`;time.textContent='incorporado';return;
+   }
+   if(ch.sourceMode==='local'&&ch.assetId){
+    screen.innerHTML=`<video controls preload="metadata" data-learn-local-asset="${esc(ch.assetId)}"></video>`;await hydrateLocalVideos(screen);
+   }else if(ch.src){
+    screen.innerHTML=`<video controls preload="metadata" src="${esc(ch.src)}"></video>`;
+   }else{
+    screen.innerHTML='<div class="tv-static">SEM SINAL<small>Adicione uma mídia</small></div>';time.textContent='';return;
+   }
+   const v=$('video',screen);
+   if(v){
+    v.onloadedmetadata=()=>{const st=Number(ch.start)||0;if(st)v.currentTime=Math.min(st,v.duration||st);time.textContent=(st?'início '+st+'s':'')+(ch.end?' · fim '+ch.end+'s':'')};
+    const skips=parseRanges(ch.skipRanges);
+    v.ontimeupdate=()=>{
+     if(ch.end&&v.currentTime>=Number(ch.end)){v.pause();v.currentTime=Number(ch.end)}
+     for(const [a,b] of skips){if(v.currentTime>=a&&v.currentTime<b){v.currentTime=b;break}}
+    };
+   }
+  };
+
+  $('[data-tv-next]',box).onclick=()=>{current=(current+1)%(el.channels?.length||1);renderChannel()};
+  $('[data-tv-prev]',box).onclick=()=>{current=(current-1+(el.channels?.length||1))%(el.channels?.length||1);renderChannel()};
+  $$('[data-tv-number]',box).forEach(b=>b.onclick=()=>{const i=el.channels?.findIndex(x=>String(x.number)===b.dataset.tvNumber);if(i>=0){current=i;renderChannel()}});
+  $('[data-tv-power]',box).onclick=()=>{powered=!powered;renderChannel()};
+  $('[data-tv-play]',box).onclick=()=>$('video',screen)?.play().catch(()=>{});
+  $('[data-tv-pause]',box).onclick=()=>$('video',screen)?.pause();
+  $('[data-tv-back]',box).onclick=()=>{const v=$('video',screen);if(v)v.currentTime=Math.max(0,v.currentTime-10)};
+  $('[data-tv-forward]',box).onclick=()=>{const v=$('video',screen);if(v)v.currentTime=Math.min(v.duration||Infinity,v.currentTime+10)};
+  qBtn.onclick=()=>qBox.hidden=!qBox.hidden;
+  renderChannel();
+ });
 }function wireRuntimeSpeech(p,s,dialog){
  const narrate=$('#runtimeNarrate',dialog);if(narrate)narrate.onclick=()=>{if(!speakText(slideNarrationText(s),p))narrate.textContent='Narração indisponível neste navegador'};
  const stop=$('#runtimeStopSpeech',dialog);if(stop)stop.onclick=()=>{if('speechSynthesis'in window)speechSynthesis.cancel()};
