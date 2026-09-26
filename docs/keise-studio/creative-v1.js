@@ -67,6 +67,7 @@ function editor(){
      <label>Limite de API por live (US$)<input id="liveBudget" type="number" min="0" step=".10" value="${Number(p.liveAssist?.budgetLimit||0)}" placeholder="0 = não definido"></label>
     </div>
     <label>Endpoint seguro do conector <span class="live-optional">opcional</span><input id="liveEndpoint" type="url" value="${esc(p.liveAssist?.endpoint||'')}" placeholder="https://seu-conector/..."></label>
+    <div class="live-config-grid"><label>Plataforma da live<select id="liveProvider"><option ${p.liveAssist?.provider==='Google Meet'?'selected':''}>Google Meet</option><option ${p.liveAssist?.provider==='Microsoft Teams'?'selected':''}>Microsoft Teams</option><option ${p.liveAssist?.provider==='Zoom'?'selected':''}>Zoom</option><option ${p.liveAssist?.provider==='Outro'?'selected':''}>Outro</option></select></label><label>Link da reunião<input id="liveMeetingUrl" type="url" value="${esc(p.liveAssist?.meetingUrl||'')}" placeholder="https://..."></label></div>
     <p class="live-security">🔐 Nunca coloque chave secreta da API aqui. Quando conectarmos IA em tempo real, a chave deve ficar no servidor/conector, nunca no navegador ou no HTML da live.</p>
     <div class="live-toggle-grid">
      <label><input id="liveQuestions" type="checkbox" ${p.liveAssist?.questions!==false?'checked':''}> 💬 Dúvidas em tempo real</label>
@@ -83,7 +84,7 @@ function editor(){
    </form>
   </dialog>
   <dialog class="creative-live-run" id="creativeLiveRun">
-   <header class="live-run-top"><div><b>🔴 Central da Live</b><small id="liveRunMode">modo local</small></div><div class="live-clock" id="liveClock">00:00:00</div><button type="button" id="liveEndSession">Encerrar</button></header>
+   <header class="live-run-top"><div><b>🔴 Central da Live</b><small id="liveRunMode">modo local</small></div><div class="live-clock" id="liveClock">00:00:00</div><div class="live-top-actions"><button type="button" id="liveOpenMeeting">Abrir reunião ↗</button><button type="button" id="liveEndSession">Encerrar</button></div></header>
    <main class="live-run-body">
     <section class="live-cue-panel"><h3>Marcar este momento</h3><p>Clique no que aconteceu agora. A marcação guarda o tempo da transmissão para você usar depois.</p>
      <div class="live-cue-buttons">
@@ -98,7 +99,7 @@ function editor(){
      </div>
      <label class="live-note-label">Observação opcional<textarea id="liveCueNote" placeholder="Ex.: revisar a explicação da norma; aluno perguntou sobre..."></textarea></label>
     </section>
-    <section class="live-event-panel"><div class="live-event-head"><div><h3>Roteiro do que aconteceu</h3><p>Fica salvo no projeto para a pós-produção.</p></div><span id="liveConnectorStatus"></span></div><div id="liveCueList" class="live-cue-list"></div></section>
+    <section class="live-event-panel"><div class="live-event-head"><div><h3>Roteiro do que aconteceu</h3><p>Fica salvo no projeto para a pós-produção.</p></div><span id="liveConnectorStatus"></span></div><div id="liveCueList" class="live-cue-list"></div><div class="live-comments-box"><div><h3>💬 Comentários da live</h3><p>Cole comentários do Meet/Teams ou de outra plataforma para organizar e analisar.</p></div><textarea id="liveCommentsPaste" placeholder="Cole aqui os comentários, um por linha..."></textarea><div class="live-comments-actions"><button type="button" id="liveAddComments">Adicionar à sessão</button><button type="button" id="liveAnalyzeComments">Analisar comentários</button></div><div id="liveCommentsSummary" class="live-comments-summary"></div><div id="liveCommentsList" class="live-comments-list"></div></div></section>
    </main>
   </dialog>
   <dialog class="dialog wide creative-teleprompter-dialog" id="creativeTeleprompterDialog">
@@ -141,7 +142,7 @@ function bindLibrary(){
  $$('[data-creative-open]',root).forEach(b=>b.onclick=()=>{activeProjectId=b.dataset.creativeOpen;activeClipId=project()?.clips[0]?.id||null;mode='editor';render()});
 }
 function createProject(title,context,aspect='16:9'){
- const p={id:uid('creative'),title,context,aspect,clips:[],overlayText:'',textPosition:'bottom',textSize:42,preset:'natural',brightness:100,contrast:100,saturation:100,cinemaBars:false,teleprompter:{script:'',speed:32,fontSize:52,lineHeight:1.55,countdown:3,mirror:false,centerGuide:true},liveAssist:{mode:'manual',budgetLimit:0,endpoint:'',questions:true,materials:true,comments:false,understanding:true,autoCaptions:false,teleprompterFollow:false,markCorrections:true,stopAtBudget:true,sessions:[]},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const p={id:uid('creative'),title,context,aspect,clips:[],overlayText:'',textPosition:'bottom',textSize:42,preset:'natural',brightness:100,contrast:100,saturation:100,cinemaBars:false,teleprompter:{script:'',speed:32,fontSize:52,lineHeight:1.55,countdown:3,mirror:false,centerGuide:true},liveAssist:{mode:'manual',budgetLimit:0,endpoint:'',provider:'Google Meet',meetingUrl:'',questions:true,materials:true,comments:false,understanding:true,autoCaptions:false,teleprompterFollow:false,markCorrections:true,stopAtBudget:true,sessions:[]},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
  state.projects.unshift(p);save();activeProjectId=p.id;activeClipId=null;mode='editor';render();
 }
 async function importFile(file){
@@ -233,7 +234,7 @@ function bindTeleprompter(p){
  document.addEventListener('keydown',teleKeyHandler);
 }
 function ensureLiveAssist(p){
- p.liveAssist??={mode:'manual',budgetLimit:0,endpoint:'',questions:true,materials:true,comments:false,understanding:true,autoCaptions:false,teleprompterFollow:false,markCorrections:true,stopAtBudget:true,sessions:[]};
+ p.liveAssist??={mode:'manual',budgetLimit:0,endpoint:'',provider:'Google Meet',meetingUrl:'',questions:true,materials:true,comments:false,understanding:true,autoCaptions:false,teleprompterFollow:false,markCorrections:true,stopAtBudget:true,sessions:[]};
  p.liveAssist.sessions??=[];return p.liveAssist;
 }
 function liveSession(p){
@@ -255,11 +256,11 @@ function startLiveTimer(p){
  stopLiveTimer();const tick=()=>{const s=liveSession(p),clock=$('#liveClock',root);if(clock&&s)clock.textContent=formatLiveTime(liveElapsed(s))};tick();liveInterval=setInterval(tick,1000);
 }
 function openLiveCentral(p){
- const cfg=ensureLiveAssist(p),session={id:uid('live'),startedAt:new Date().toISOString(),endedAt:null,cues:[]};cfg.sessions.unshift(session);activeLiveSessionId=session.id;touch();
+ const cfg=ensureLiveAssist(p),session={id:uid('live'),startedAt:new Date().toISOString(),endedAt:null,cues:[],comments:[],analysis:null};cfg.sessions.unshift(session);activeLiveSessionId=session.id;touch();
  const dlg=$('#creativeLiveRun',root),mode=$('#liveRunMode',root),status=$('#liveConnectorStatus',root);
  if(mode)mode.textContent=cfg.mode==='director'?'Diretor IA':cfg.mode==='ondemand'?'IA sob demanda':cfg.mode==='off'?'IA desligada':'central manual';
  if(status)status.textContent=cfg.endpoint?'conector configurado':'local · sem conector';
- $('#liveCueNote',root).value='';renderLiveCueList(p);dlg.showModal();startLiveTimer(p);
+ $('#liveCueNote',root).value='';renderLiveCueList(p);renderLiveComments(p);dlg.showModal();startLiveTimer(p);
 }
 function addLiveCue(p,type){
  const s=liveSession(p);if(!s)return;const note=$('#liveCueNote',root)?.value.trim()||'';s.cues.push({id:uid('cue'),type,at:Math.round(liveElapsed(s)*10)/10,note,createdAt:new Date().toISOString()});if($('#liveCueNote',root))$('#liveCueNote',root).value='';touch();renderLiveCueList(p);
@@ -267,12 +268,35 @@ function addLiveCue(p,type){
 function closeLiveCentral(p){
  const s=liveSession(p);if(s&&!s.endedAt)s.endedAt=new Date().toISOString();touch();stopLiveTimer();activeLiveSessionId=null;const dlg=$('#creativeLiveRun',root);if(dlg?.open)dlg.close();
 }
+function renderLiveComments(p){
+ const s=liveSession(p),list=$('#liveCommentsList',root),summary=$('#liveCommentsSummary',root);if(!s||!list||!summary)return;
+ list.innerHTML=s.comments?.length?s.comments.slice(-50).reverse().map(x=>`<div><span>💬</span><p>${esc(x.text)}</p></div>`).join(''):'<div class="live-empty-comments">Nenhum comentário adicionado.</div>';
+ if(s.analysis)summary.innerHTML=`<b>${esc(s.analysis.title||'Análise')}</b><p>${esc(s.analysis.text||'')}</p>`;else summary.innerHTML='';
+}
+function analyzeCommentsLocal(comments){
+ const texts=(comments||[]).map(x=>x.text||'').filter(Boolean),questions=texts.filter(x=>/[?？]/.test(x)).length;
+ const stop=new Set('a o e de da do das dos em um uma para por com que se no na nos nas eu você voce ele ela isso isto mas mais ou ao aos às as os meu minha seu sua como quando onde qual quais porque porquê pra esta esse essa foi tem ter são ser já nao não sim muito também tbm'.split(' ')),freq={};
+ texts.join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,' ').split(/\s+/).forEach(w=>{if(w.length<4||stop.has(w))return;freq[w]=(freq[w]||0)+1});
+ const top=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([w,n])=>w+' ('+n+')');
+ return{title:'Leitura rápida dos comentários',text:`${texts.length} comentário(s), ${questions} com pergunta explícita. Termos recorrentes: ${top.length?top.join(', '):'sem recorrência suficiente'}.`};
+}
+async function analyzeLiveComments(p){
+ const cfg=ensureLiveAssist(p),s=liveSession(p);if(!s)return;
+ const out=$('#liveCommentsSummary',root);out.innerHTML='<p>Analisando...</p>';
+ if(cfg.endpoint&&['ondemand','director'].includes(cfg.mode)){
+  try{const res=await fetch(cfg.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyze_live_comments',projectId:p.id,sessionId:s.id,comments:s.comments})});if(!res.ok)throw new Error('HTTP '+res.status);const data=await res.json();s.analysis={title:data.title||'Análise por IA',text:data.text||data.summary||JSON.stringify(data)};touch();renderLiveComments(p);return}catch(e){s.analysis=analyzeCommentsLocal(s.comments);s.analysis.text+=' O conector de IA não respondeu; usei análise local.';touch();renderLiveComments(p);return}
+ }
+ s.analysis=analyzeCommentsLocal(s.comments);touch();renderLiveComments(p);
+}
 function bindLiveAssist(p){
  const cfg=ensureLiveAssist(p),dlg=$('#creativeLiveAssistDialog',root);
  $('#creativeLiveAssist',root).onclick=()=>dlg.showModal();
- $('#liveAssistForm',root).onsubmit=e=>{e.preventDefault();cfg.mode=$('#liveMode',root).value;cfg.budgetLimit=Math.max(0,Number($('#liveBudget',root).value)||0);cfg.endpoint=$('#liveEndpoint',root).value.trim();cfg.questions=$('#liveQuestions',root).checked;cfg.materials=$('#liveMaterials',root).checked;cfg.comments=$('#liveComments',root).checked;cfg.understanding=$('#liveUnderstanding',root).checked;cfg.autoCaptions=$('#liveCaptions',root).checked;cfg.teleprompterFollow=$('#liveTeleFollow',root).checked;cfg.markCorrections=$('#liveMarkCorrections',root).checked;cfg.stopAtBudget=$('#liveStopBudget',root).checked;touch();toast('Live Assist configurado.')};
- $('#liveOpenCentral',root).onclick=()=>{cfg.mode=$('#liveMode',root).value;cfg.budgetLimit=Math.max(0,Number($('#liveBudget',root).value)||0);cfg.endpoint=$('#liveEndpoint',root).value.trim();cfg.questions=$('#liveQuestions',root).checked;cfg.materials=$('#liveMaterials',root).checked;cfg.comments=$('#liveComments',root).checked;cfg.understanding=$('#liveUnderstanding',root).checked;cfg.autoCaptions=$('#liveCaptions',root).checked;cfg.teleprompterFollow=$('#liveTeleFollow',root).checked;cfg.markCorrections=$('#liveMarkCorrections',root).checked;cfg.stopAtBudget=$('#liveStopBudget',root).checked;touch();dlg.close();openLiveCentral(p)};
+ $('#liveAssistForm',root).onsubmit=e=>{e.preventDefault();cfg.mode=$('#liveMode',root).value;cfg.budgetLimit=Math.max(0,Number($('#liveBudget',root).value)||0);cfg.endpoint=$('#liveEndpoint',root).value.trim();cfg.provider=$('#liveProvider',root).value;cfg.meetingUrl=$('#liveMeetingUrl',root).value.trim();cfg.questions=$('#liveQuestions',root).checked;cfg.materials=$('#liveMaterials',root).checked;cfg.comments=$('#liveComments',root).checked;cfg.understanding=$('#liveUnderstanding',root).checked;cfg.autoCaptions=$('#liveCaptions',root).checked;cfg.teleprompterFollow=$('#liveTeleFollow',root).checked;cfg.markCorrections=$('#liveMarkCorrections',root).checked;cfg.stopAtBudget=$('#liveStopBudget',root).checked;touch();toast('Live Assist configurado.')};
+ $('#liveOpenCentral',root).onclick=()=>{cfg.mode=$('#liveMode',root).value;cfg.budgetLimit=Math.max(0,Number($('#liveBudget',root).value)||0);cfg.endpoint=$('#liveEndpoint',root).value.trim();cfg.provider=$('#liveProvider',root).value;cfg.meetingUrl=$('#liveMeetingUrl',root).value.trim();cfg.questions=$('#liveQuestions',root).checked;cfg.materials=$('#liveMaterials',root).checked;cfg.comments=$('#liveComments',root).checked;cfg.understanding=$('#liveUnderstanding',root).checked;cfg.autoCaptions=$('#liveCaptions',root).checked;cfg.teleprompterFollow=$('#liveTeleFollow',root).checked;cfg.markCorrections=$('#liveMarkCorrections',root).checked;cfg.stopAtBudget=$('#liveStopBudget',root).checked;touch();dlg.close();openLiveCentral(p)};
  $('[data-live-cue]',root).forEach(b=>b.onclick=()=>addLiveCue(p,b.dataset.liveCue));
+ $('#liveOpenMeeting',root).onclick=()=>{if(!cfg.meetingUrl){alert('Adicione o link da reunião nas configurações do Live Assist.');return}window.open(cfg.meetingUrl,'keise-live-meeting','popup=yes,width=1180,height=800')};
+ $('#liveAddComments',root).onclick=()=>{const s=liveSession(p),raw=$('#liveCommentsPaste',root).value.trim();if(!s||!raw)return;raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).forEach(text=>s.comments.push({id:uid('comment'),text,at:Math.round(liveElapsed(s)*10)/10,createdAt:new Date().toISOString()}));$('#liveCommentsPaste',root).value='';touch();renderLiveComments(p)};
+ $('#liveAnalyzeComments',root).onclick=()=>analyzeLiveComments(p);
  $('#liveEndSession',root).onclick=()=>closeLiveCentral(p);
 }
 function bindEditor(){
