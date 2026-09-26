@@ -22,8 +22,16 @@ const TYPES=['Orientação','Lembrete de prazo','Acolhimento','Feedback','Retoma
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 let root=null,state=load(),tab='overview',filterStatus='all',filterDiscipline='all',editingId=null;
 
-function blank(){return{version:1,students:[],interventions:[],updatedAt:null}}
-function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');return x&&x.version===1?x:blank()}catch{return blank()}}
+function defaultTemplates(){
+  return [
+    {id:'tpl-welcome',title:'Boas-vindas',category:'Acolhimento',subject:'Boas-vindas à disciplina',body:'Olá, {nome}! Seja bem-vindo(a). Estou passando para me colocar à disposição durante a disciplina. Sempre que precisar, você pode utilizar os canais de comunicação disponíveis no ambiente.'},
+    {id:'tpl-deadline',title:'Lembrete de prazo',category:'Prazo',subject:'Lembrete sobre prazo',body:'Olá, {nome}! Passando para lembrar que o prazo de {atividade} está se aproximando. Se puder, confira o calendário da disciplina para organizar sua entrega com tranquilidade.'},
+    {id:'tpl-followup',title:'Retomada de contato',category:'Acompanhamento',subject:'Acompanhamento',body:'Olá, {nome}! Estou retomando nosso contato para saber se conseguiu avançar em {atividade}. Caso ainda tenha alguma dificuldade, me sinalize pelo canal da disciplina para que eu possa orientar.'},
+    {id:'tpl-feedback',title:'Feedback acolhedor',category:'Feedback',subject:'Retorno sobre sua atividade',body:'Olá, {nome}! Obrigada pela sua participação. Seu trabalho apresenta pontos importantes e, para fortalecer ainda mais a entrega, vale observar: {observacao}.'}
+  ];
+}
+function blank(){return{version:1,students:[],interventions:[],activities:[],meetings:[],templates:defaultTemplates(),communications:[],updatedAt:null}}
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');if(x&&x.version===1){x.students??=[];x.interventions??=[];x.activities??=[];x.meetings??=[];x.communications??=[];if(!Array.isArray(x.templates)||!x.templates.length)x.templates=defaultTemplates();return x}return blank()}catch{return blank()}}
 function save(){state.updatedAt=new Date().toISOString();localStorage.setItem(KEY,JSON.stringify(state))}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function uid(p='m'){return p+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8)}
@@ -61,6 +69,26 @@ function contentKindLabel(item){
 function contentContextText(item){
  const time=item.timestamp!=null?' · '+Number(item.timestamp).toFixed(1)+'s':'';
  return [item.projectTitle||'Projeto',item.slideTitle||'Tela',(item.videoTitle||'Vídeo')+time].join(' · ');
+}
+
+function activityState(a){
+ if(a.status==='concluida')return'done';
+ if(!a.dueDate)return'normal';
+ const due=new Date(a.dueDate+'T23:59:59').getTime(),diff=(due-Date.now())/864e5;
+ if(diff<0)return'late';if(diff<=2)return'soon';return'normal'
+}
+function upcomingActivities(){return [...state.activities].filter(a=>a.status!=='concluida').sort((a,b)=>String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999')))}
+function upcomingMeetings(){return [...state.meetings].filter(m=>m.status!=='concluido'&&m.status!=='cancelado').sort((a,b)=>new Date(a.at||'2999')-new Date(b.at||'2999'))}
+function signalCounts(){
+ const out={};Object.keys(SIGNALS).forEach(k=>out[k]=0);state.students.forEach(s=>activeSignals(s).forEach(k=>out[k]=(out[k]||0)+1));return out
+}
+function historyItems(){
+ const items=[];
+ state.interventions.forEach(x=>{const s=state.students.find(a=>a.id===x.studentId);items.push({at:x.at,icon:'💬',title:x.type,meta:s?.name||'Estudante',text:x.note||'',kind:'intervention'})});
+ state.activities.forEach(x=>items.push({at:x.updatedAt||x.createdAt,icon:x.status==='concluida'?'✅':'📌',title:x.title,meta:x.discipline||x.type||'Atividade',text:x.status==='concluida'?'Concluída':'Atualizada',kind:'activity'}));
+ state.meetings.forEach(x=>items.push({at:x.updatedAt||x.createdAt,icon:'🗓️',title:x.title,meta:x.discipline||x.provider||'Encontro',text:x.status==='concluido'?'Concluído':x.status==='cancelado'?'Cancelado':'Agendado',kind:'meeting'}));
+ state.communications.forEach(x=>items.push({at:x.at,icon:'✉️',title:'Comunicação realizada',meta:x.name||x.channel||'Registro',text:x.message||'',kind:'communication'}));
+ return items.sort((a,b)=>new Date(b.at||0)-new Date(a.at||0))
 }
 function filteredStudents(){
  return state.students.filter(s=>(filterStatus==='all'||s.status===filterStatus)&&(filterDiscipline==='all'||s.discipline===filterDiscipline)).sort((a,b)=>{
