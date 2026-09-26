@@ -83,11 +83,17 @@ function areaView(area){
  <section class="panel"><h3>Construção por etapas</h3><div class="roadmap"><div class="roadmap-item"><div class="num">1</div><div><b>Base funcional</b><p>Projetos locais, organização e estrutura principal.</p></div></div><div class="roadmap-item"><div class="num">2</div><div><b>Editor específico</b><p>Ferramentas reais da área, construídas de forma incremental.</p></div></div><div class="roadmap-item"><div class="num">3</div><div><b>Exportação e integração</b><p>Publicação, arquivos portáveis e conexão com Analytics.</p></div></div></div></section>`;
 }
 function render(){
- $('#viewRoot').innerHTML=view==='home'?home():areaView(view);
- $$('.nav-item[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
- $$('[data-go]').forEach(b=>b.onclick=()=>{view=b.dataset.go;render();scrollTo(0,0)});
- $$('[data-new]').forEach(b=>b.onclick=()=>openNew(b.dataset.area));
- $$('[data-project]').forEach(b=>b.onclick=()=>openProject(b.dataset.project));
+ const root=$('#viewRoot');
+ $('.nav-item[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+ if(view==='mediation'&&window.KeiseMediation){
+  root.innerHTML='';
+  window.KeiseMediation.mount(root);
+  return;
+ }
+ root.innerHTML=view==='home'?home():areaView(view);
+ $('[data-go]').forEach(b=>b.onclick=()=>{view=b.dataset.go;render();scrollTo(0,0)});
+ $('[data-new]').forEach(b=>b.onclick=()=>openNew(b.dataset.area));
+ $('[data-project]').forEach(b=>b.onclick=()=>openProject(b.dataset.project));
 }
 function openNew(area){
  $('#projectArea').value=area||'learning';$('#projectForm').reset();if(area)$('#projectArea').value=area;$('#projectDialog').showModal();setTimeout(()=>$('#projectName').focus(),50)
@@ -105,7 +111,7 @@ function setup(){
  $('#newProjectBtn').onclick=()=>openNew();
  $$('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
  $('#projectForm').onsubmit=e=>{e.preventDefault();const p={id:id(),name:$('#projectName').value.trim(),area:$('#projectArea').value,context:$('#projectContext').value.trim(),goal:$('#projectGoal').value.trim(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};state.projects.unshift(p);save();$('#projectDialog').close();view=p.area;render();toast('Projeto criado no Keise Studio ✨')};
- $('#backupBtn').onclick=()=>{const blob=new Blob([JSON.stringify({schema:'keise-studio/backup-v1',...state},null,2)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='keise-studio-backup.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Backup salvo.')};
+ $('#backupBtn').onclick=()=>{const payload={schema:'keise-studio/backup-v2',studio:state,mediation:window.KeiseMediation?.exportState?.()||null,exportedAt:new Date().toISOString()};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='keise-studio-backup.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Backup do Studio salvo.')};
  render();
 }
 setup();
