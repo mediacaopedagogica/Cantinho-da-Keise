@@ -451,7 +451,37 @@ function setupRuntimeSupport(p,s,dialog){
   $('[data-support-signal]',support).forEach(b=>b.onclick=async()=>{const result=await sendSupportPayload(p,supportPayload(p,s,e,wrap,'signal',b.dataset.supportSignal));b.classList.add('sent');const old=b.textContent;b.textContent=result.sent?'✓ Enviado':'✓ Registrado';setTimeout(()=>{b.textContent=old;b.classList.remove('sent')},1800)});
  });
 }
-function renderRuntime(p,dialog){
+function launchRuntimeEffect(type,host){
+ const layer=document.createElement('div');layer.className='keise-effect-layer';(host||document.body).append(layer);
+ const sets={confetti:['🎉','✨','🟣','🟡','🩷','🟢'],applause:['👏','👏','✨'],gift:['🎁','✨','💝'],stars:['⭐','🌟','✨'],balloons:['🎈','🎈','✨'],boo:['📣','🙃','💨']},items=sets[type]||sets.confetti;
+ for(let i=0;i<34;i++){const s=document.createElement('span');s.textContent=items[i%items.length];s.style.left=(Math.random()*100)+'%';s.style.setProperty('--dx',((Math.random()-.5)*260)+'px');s.style.animationDelay=(Math.random()*.35)+'s';s.style.fontSize=(16+Math.random()*24)+'px';layer.append(s)}
+ setTimeout(()=>layer.remove(),2600);
+}
+function runtimeImageSource(e){return e.assetId?`<img data-learn-local-asset="${esc(e.assetId)}" alt="${esc(e.alt||'')}">`:e.src?`<img src="${esc(e.src)}" alt="${esc(e.alt||'')}">`:'<div class="runtime-note">Imagem ainda não adicionada.</div>'}
+function advancedRuntimeMarkup(e,p){
+ if(e.type==='image')return `<figure class="runtime-image">${runtimeImageSource(e)}${e.caption?`<figcaption>${esc(e.caption)}</figcaption>`:''}</figure>`;
+ if(e.type==='popup')return `<div class="runtime-popup"><button class="soft runtime-popup-open" type="button">🪟 ${esc(e.label||'Abrir')}</button><div class="runtime-popup-panel" hidden><div><b>${esc(e.title||'Saiba mais')}</b><button class="runtime-popup-close" type="button">×</button></div><p>${esc(e.content||'')}</p></div></div>`;
+ if(e.type==='tabs')return `<div class="runtime-tabs"><div class="runtime-tab-buttons">${(e.items||[]).map((it,i)=>`<button type="button" data-tab-index="${i}" class="${i===0?'active':''}">${esc(it.title)}</button>`).join('')}</div><div class="runtime-tab-panel">${esc(e.items?.[0]?.content||'')}</div></div>`;
+ if(e.type==='hotspot'){const image=runtimeImageSource(e);return `<div class="runtime-hotspot" data-hotspot-root="${esc(e.id)}"><div class="runtime-hotspot-image">${image}${(e.hotspots||[]).map((h,i)=>`<button type="button" class="runtime-hotspot-dot" style="left:${Number(h.x)||50}%;top:${Number(h.y)||50}%" data-hot-index="${i}" aria-label="${esc(h.label||'Explorar ponto')}"><span>✦</span></button>`).join('')}</div><div class="runtime-hotspot-panel" hidden></div></div>`;}
+ if(e.type==='path')return `<div class="runtime-path"><h3>${esc(e.title||'Minha trilha')}</h3><div>${splitLines(e.stepsText).map((x,i)=>`<button type="button" data-path-step="${i}"><span>${i+1}</span><b>${esc(x)}</b><small>marcar etapa</small></button>`).join('')}</div></div>`;
+ if(e.type==='meeting')return `<div class="runtime-meeting"><span>🔴</span><div><h3>${esc(e.title||'Encontro ao vivo')}</h3><p>${esc(e.note||'')}</p><button class="primary runtime-meeting-open" type="button" data-url="${esc(e.url||'')}">Abrir ${esc(e.provider||'reunião')} ↗</button><small>O encontro abre em outra janela para o Keise Studio continuar disponível ao lado.</small></div></div>`;
+ if(e.type==='escape')return `<div class="runtime-escape" data-answer="${esc(String(e.answer||'').toLowerCase())}" data-target="${esc(e.targetSlideId||'')}" data-effect="${esc(e.effect||'confetti')}"><div class="escape-lock">🔐</div><h3>${esc(e.prompt||'Resolva o desafio.')}</h3><input class="escape-answer" placeholder="Digite sua resposta"><div class="escape-actions"><button class="soft escape-hint" type="button">💡 Dica</button><button class="primary escape-check" type="button">Desbloquear</button></div><p class="escape-feedback"></p><p class="escape-hint-text" hidden>${esc(e.hint||'')}</p><button class="primary escape-continue" type="button" hidden>${e.targetSlideId?'Ir para próxima cena →':'Continuar'}</button></div>`;
+ if(e.type==='bingo'){const items=splitLines(e.itemsText),count=Math.min(items.length,Number(e.grid||3)**2);return `<div class="runtime-bingo" data-grid="${Number(e.grid)||3}"><h3>🎯 ${esc(e.title||'Bingo')}</h3><div class="bingo-grid" style="--grid:${Number(e.grid)||3}">${items.slice(0,count).map((x,i)=>`<button type="button" data-bingo-cell="${i}">${esc(x)}</button>`).join('')}</div><div class="bingo-actions"><button class="soft bingo-draw" type="button">🎲 Sortear um item</button><button class="soft bingo-reset" type="button">↺ Limpar</button></div><p class="bingo-result"></p></div>`;}
+ if(e.type==='raffle')return `<div class="runtime-raffle" data-items="${esc(JSON.stringify(splitLines(e.itemsText)))}"><span>🎲</span><h3>${esc(e.title||'Sorteio')}</h3><div class="raffle-result">Pronto para sortear</div><button class="primary raffle-run" type="button">Sortear</button></div>`;
+ if(e.type==='effect')return `<button class="runtime-effect-button" type="button" data-effect="${esc(e.effect||'confetti')}">✨ ${esc(e.label||'Comemorar')}</button>`;
+ return '';
+}
+function wireAdvancedRuntime(p,s,dialog,runtime){
+ $('.runtime-popup',dialog).forEach(box=>{const panel=$('.runtime-popup-panel',box);$('.runtime-popup-open',box).onclick=()=>panel.hidden=false;$('.runtime-popup-close',box).onclick=()=>panel.hidden=true});
+ $('.runtime-tabs',dialog).forEach(box=>{const e=s.elements.find(x=>x.type==='tabs'&&(x.items||[]).some(it=>box.textContent.includes(it.title)))||null;const buttons=$('[data-tab-index]',box),panel=$('.runtime-tab-panel',box);buttons.forEach(b=>b.onclick=()=>{buttons.forEach(x=>x.classList.remove('active'));b.classList.add('active');const idx=Number(b.dataset.tabIndex);if(e)panel.textContent=e.items?.[idx]?.content||''})});
+ $('.runtime-hotspot',dialog).forEach(box=>{const e=s.elements.find(x=>x.id===box.dataset.hotspotRoot),panel=$('.runtime-hotspot-panel',box);if(!e)return;$('[data-hot-index]',box).forEach(b=>b.onclick=()=>{const h=e.hotspots?.[Number(b.dataset.hotIndex)];if(!h)return;if(h.action==='scene'&&h.targetSlideId){runtime.dataset.current=h.targetSlideId;renderRuntime(p,dialog);return}if(h.action==='effect'){launchRuntimeEffect(h.effect||'confetti',dialog);return}if(h.action==='link'&&h.url){window.open(h.url,'_blank','noopener');return}panel.hidden=false;panel.innerHTML=`<div><b>${esc(h.label||'Explorar')}</b><button type="button">×</button></div><p>${esc(h.content||'')}</p>`;panel.querySelector('button').onclick=()=>panel.hidden=true})});
+ $('.runtime-path [data-path-step]',dialog).forEach(b=>b.onclick=()=>b.classList.toggle('done'));
+ $('.runtime-meeting-open',dialog).forEach(b=>b.onclick=()=>{if(!b.dataset.url){alert('Adicione o link da reunião no editor.');return}window.open(b.dataset.url,'keise-meeting','popup=yes,width=1100,height=760')});
+ $('.runtime-escape',dialog).forEach(box=>{const input=$('.escape-answer',box),feedback=$('.escape-feedback',box),cont=$('.escape-continue',box);$('.escape-hint',box).onclick=()=>$('.escape-hint-text',box).hidden=false;$('.escape-check',box).onclick=()=>{const ok=input.value.trim().toLowerCase()===box.dataset.answer.trim().toLowerCase();feedback.textContent=ok?'✅ '+(s.elements.find(x=>x.type==='escape'&&String(x.answer||'').toLowerCase()===box.dataset.answer)?.success||'Você conseguiu!'):'Ainda não. Observe a pista e tente novamente.';if(ok){launchRuntimeEffect(box.dataset.effect||'confetti',dialog);cont.hidden=false}};cont.onclick=()=>{if(box.dataset.target){runtime.dataset.current=box.dataset.target;renderRuntime(p,dialog)}}});
+ $('.runtime-bingo',dialog).forEach(box=>{const cells=$('[data-bingo-cell]',box),result=$('.bingo-result',box);cells.forEach(b=>b.onclick=()=>b.classList.toggle('marked'));$('.bingo-draw',box).onclick=()=>{const available=cells.filter(x=>!x.classList.contains('marked'));if(!available.length){result.textContent='Todos os itens já foram marcados.';return}const pick=available[Math.floor(Math.random()*available.length)];pick.classList.add('marked');result.textContent='Saiu: '+pick.textContent;launchRuntimeEffect('stars',dialog)};$('.bingo-reset',box).onclick=()=>{cells.forEach(x=>x.classList.remove('marked'));result.textContent=''}});
+ $('.runtime-raffle',dialog).forEach(box=>{$('.raffle-run',box).onclick=()=>{let items=[];try{items=JSON.parse(box.dataset.items||'[]')}catch{};if(!items.length)return;const pick=items[Math.floor(Math.random()*items.length)];$('.raffle-result',box).textContent=pick;launchRuntimeEffect('confetti',dialog)}});
+ $('.runtime-effect-button',dialog).forEach(b=>b.onclick=()=>launchRuntimeEffect(b.dataset.effect||'confetti',dialog));
+}function renderRuntime(p,dialog){
  const runtime=$('.learn-runtime',dialog),stage=$('#learnRuntimeStage',dialog),mode=runtime?.dataset.mode||'screen';
  if(mode!=='screen'){renderReadingRuntime(p,dialog,mode);return}
  runtime.className='learn-runtime mode-screen';const footer=$('footer',runtime);if(footer)footer.hidden=false;
@@ -463,7 +493,8 @@ function renderRuntime(p,dialog){
   if(e.type==='reflection')return `<div class="runtime-reflection"><b>${esc(e.prompt)}</b><textarea placeholder="${esc(e.placeholder||'Escreva sua reflexão...')}"></textarea></div>`;
   if(e.type==='quiz')return `<form class="runtime-quiz" data-correct="${Number(e.correct)||0}" data-right="${esc(e.feedbackRight||'Muito bem!')}" data-wrong="${esc(e.feedbackWrong||'Tente novamente.')}"><b>${esc(e.question)}</b>${(e.options||[]).map((o,i)=>`<label><input type="radio" name="q-${esc(e.id)}" value="${i}"> ${esc(o)}</label>`).join('')}<button class="soft runtime-check" type="button">Verificar resposta</button><p class="runtime-feedback" role="status"></p></form>`;
   if(e.type==='button')return `<button class="primary runtime-jump" data-target="${esc(e.targetSlideId||'')}">${esc(e.label||'Continuar')}</button>`;
-  return '';
+  return advancedRuntimeMarkup(e,p);
+
  }).join('');
  $('#runtimeCounter',dialog).textContent=(index+1)+' / '+p.slides.length;
  $('#runtimePrev',dialog).disabled=index<=0;$('#runtimeNext',dialog).disabled=index>=p.slides.length-1;
@@ -473,6 +504,7 @@ function renderRuntime(p,dialog){
  $$('.runtime-jump',dialog).forEach(b=>b.onclick=()=>{if(!b.dataset.target)return;runtime.dataset.current=b.dataset.target;renderRuntime(p,dialog)});
  setupRuntimeVideos(p,s,dialog,runtime);
  setupRuntimeSupport(p,s,dialog);
+ wireAdvancedRuntime(p,s,dialog,runtime);
  hydrateLocalVideos(dialog).catch(()=>{});
 }
 function previewProject(id){
