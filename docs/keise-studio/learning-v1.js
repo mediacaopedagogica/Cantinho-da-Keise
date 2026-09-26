@@ -16,6 +16,20 @@ function element(){return slide()?.elements.find(e=>e.id===selectedElementId)||n
 function touch(){const p=project();if(p)p.updatedAt=new Date().toISOString();save()}
 function fmt(v){return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(v))}
 function splitLines(v){return String(v||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean)}
+function ensureA11y(p){p.a11y??={fontScale:100,highContrast:false,reduceMotion:false,focusOutline:true};return p.a11y}
+function accessibilityIssues(p){
+ const issues=[];
+ p.slides.forEach((s,si)=>(s.elements||[]).forEach((e,ei)=>{
+  const where=(s.title||'Tela '+(si+1))+' · bloco '+(ei+1);
+  if(e.type==='image'&&!String(e.alt||'').trim())issues.push({level:'warning',where,text:'Imagem sem texto alternativo.'});
+  if(e.type==='hotspot'){if(!String(e.alt||'').trim())issues.push({level:'warning',where,text:'Imagem interativa sem texto alternativo.'});(e.hotspots||[]).forEach((h,i)=>{if(!String(h.label||'').trim())issues.push({level:'warning',where,text:'Hotspot '+(i+1)+' sem rótulo acessível.'})})}
+  if(e.type==='button'&&!String(e.label||'').trim())issues.push({level:'warning',where,text:'Botão sem texto.'});
+  if(e.type==='video'&&!String(e.title||'').trim())issues.push({level:'warning',where,text:'Vídeo sem título identificador.'});
+  if(e.type==='popup'&&(!String(e.label||'').trim()||!String(e.title||'').trim()))issues.push({level:'warning',where,text:'Popup precisa de rótulo e título claros.'});
+  if(e.type==='quiz'&&(!String(e.question||'').trim()||(e.options||[]).some(x=>!String(x||'').trim())))issues.push({level:'warning',where,text:'Questão com pergunta ou alternativa vazia.'});
+ }));
+ return issues;
+}
 function ensureProjectSupport(p){
  p.support??={endpoint:'',defaultPrivacy:'private'};
  return p.support;
@@ -115,7 +129,7 @@ function editor(){
   <header class="learn-editor-top">
    <button class="soft" id="learnBack">← Projetos</button>
    <div><small>Keise Learning</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'Sem contexto informado')}</p></div>
-   <div class="learn-editor-actions"><span class="learn-save-state">● salvo localmente</span><button class="soft" id="learnSupportSettingsBtn">💜 Apoios</button><button class="soft" id="learnCodeBtn">&lt;/&gt; Código</button><button class="soft" id="learnPreview">▶ Visualizar</button><button class="primary" id="learnExport">Exportar HTML</button></div>
+   <div class="learn-editor-actions"><span class="learn-save-state">● salvo localmente</span><button class="soft" id="learnSupportSettingsBtn">💜 Apoios</button><button class="soft" id="learnA11yBtn">♿ Acessibilidade</button><button class="soft" id="learnCodeBtn">&lt;/&gt; Código</button><button class="soft" id="learnPreview">▶ Visualizar</button><button class="primary" id="learnExport">Exportar HTML</button></div>
   </header>
   <div class="learn-workspace">
    <aside class="learn-slides">
@@ -158,6 +172,18 @@ function editor(){
     <label>Código para incorporar depois de publicar<textarea id="learnIframeCode" readonly spellcheck="false"></textarea></label>
     <div class="code-actions"><button class="soft" type="button" id="learnCopyIframe">Copiar iframe</button></div>
    </div>
+  </dialog>
+  <dialog class="dialog wide learn-a11y-dialog" id="learnA11yDialog">
+   <button class="dialog-close" type="button" data-learn-close>×</button>
+   <div class="dialog-icon">♿</div><h2>Acessibilidade</h2>
+   <p>Configure preferências padrão e verifique pontos que precisam de atenção antes de publicar.</p>
+   <div class="a11y-config-grid">
+    <label>Tamanho-base do texto <span id="a11yFontValue">${ensureA11y(p).fontScale}%</span><input id="a11yFontScale" type="range" min="85" max="140" step="5" value="${ensureA11y(p).fontScale}"></label>
+    <label class="support-check"><input id="a11yHighContrast" type="checkbox" ${ensureA11y(p).highContrast?'checked':''}> Alto contraste por padrão</label>
+    <label class="support-check"><input id="a11yReduceMotion" type="checkbox" ${ensureA11y(p).reduceMotion?'checked':''}> Reduzir animações</label>
+    <label class="support-check"><input id="a11yFocusOutline" type="checkbox" ${ensureA11y(p).focusOutline!==false?'checked':''}> Destacar foco do teclado</label>
+   </div>
+   <div class="a11y-audit"><div class="checkpoint-head"><b>Verificação do projeto</b><button class="soft" id="a11yRunAudit" type="button">Verificar agora</button></div><div id="a11yAuditResults"></div></div>
   </dialog>
   <dialog class="dialog wide learn-record-dialog" id="learnRecordDialog">
    <button class="dialog-close" type="button" id="learnRecordClose">×</button>
@@ -261,7 +287,7 @@ function newElement(type){
 }
 function createProject(title,context){
  const first={id:uid('slide'),title:'Boas-vindas',elements:[{id:uid('el'),type:'heading',text:title},{id:uid('el'),type:'text',text:'Comece a construir sua experiência educacional.'}]};
- const p={id:uid('learn'),title,context,support:{endpoint:'',defaultPrivacy:'private'},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),activeSlideId:first.id,slides:[first]};
+ const p={id:uid('learn'),title,context,support:{endpoint:'',defaultPrivacy:'private'},a11y:{fontScale:100,highContrast:false,reduceMotion:false,focusOutline:true},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),activeSlideId:first.id,slides:[first]};
  state.projects.unshift(p);save();activeProjectId=p.id;selectedElementId=null;mode='editor';render();
 }
 function bindLibrary(){
@@ -270,6 +296,10 @@ function bindLibrary(){
  $('#learnCreateForm',root).onsubmit=e=>{e.preventDefault();const title=$('#learnTitle',root).value.trim(),ctx=$('#learnContext',root).value.trim();$('#learnCreateDialog',root).close();createProject(title,ctx)};
  $$('[data-learn-open]',root).forEach(b=>b.onclick=()=>{activeProjectId=b.dataset.learnOpen;const p=project();if(p&&!p.activeSlideId)p.activeSlideId=p.slides[0]?.id;selectedElementId=null;mode='editor';render()});
  $$('[data-learn-preview]',root).forEach(b=>b.onclick=()=>previewProject(b.dataset.learnPreview));
+}
+function renderA11yAudit(p){
+ const box=$('#a11yAuditResults',root);if(!box)return;const issues=accessibilityIssues(p);
+ box.innerHTML=issues.length?`<div class="a11y-issues">${issues.map(i=>`<article><span>⚠️</span><div><b>${esc(i.where)}</b><p>${esc(i.text)}</p></div></article>`).join('')}</div>`:'<div class="a11y-ok">✅ Nenhum problema básico detectado nesta verificação.</div>';
 }
 function bindEditor(){
  const p=project(),s=slide();if(!p||!s)return;
@@ -286,6 +316,13 @@ function bindEditor(){
  bindProperties();
  $('#learnPreview',root).onclick=()=>previewProject(p.id);
  $('#learnExport',root).onclick=()=>exportProject(p);
+ $('#learnA11yBtn',root).onclick=()=>{renderA11yAudit(p);$('#learnA11yDialog',root).showModal()};
+ const a11y=ensureA11y(p);
+ const fs=$('#a11yFontScale',root);if(fs)fs.oninput=()=>{a11y.fontScale=Number(fs.value);$('#a11yFontValue',root).textContent=fs.value+'%';touch()};
+ const hc=$('#a11yHighContrast',root);if(hc)hc.onchange=()=>{a11y.highContrast=hc.checked;touch()};
+ const rm=$('#a11yReduceMotion',root);if(rm)rm.onchange=()=>{a11y.reduceMotion=rm.checked;touch()};
+ const fo=$('#a11yFocusOutline',root);if(fo)fo.onchange=()=>{a11y.focusOutline=fo.checked;touch()};
+ $('#a11yRunAudit',root)?.addEventListener('click',()=>renderA11yAudit(p));
  $('#learnSupportSettingsBtn',root).onclick=()=>$('#learnSupportSettingsDialog',root).showModal();
  $('#learnSupportSettingsForm',root).onsubmit=ev=>{ev.preventDefault();const cfg=ensureProjectSupport(p);cfg.endpoint=$('#learnSupportEndpoint',root).value.trim();cfg.defaultPrivacy=$('#learnSupportPrivacy',root).value;touch();$('#learnSupportSettingsDialog',root).close();toast('Apoios e mediação atualizados.')};
  $('#learnCodeBtn',root).onclick=()=>{const source=exportedHtml(p),iframe='<iframe src="COLE_A_URL_PUBLICADA_AQUI" title="'+p.title.replace(/"/g,'&quot;')+'" width="100%" height="720" style="border:0" allowfullscreen></iframe>';$('#learnSourceCode',root).value=source;$('#learnIframeCode',root).value=iframe;$('#learnCodeDialog',root).showModal()};
@@ -359,7 +396,7 @@ function previewMarkup(p){
    <div class="preview-tool-group"><b>Leitura</b><button data-preview-mode="screen" class="${previewMode==='screen'?'active':''}">✨ Interativa</button><button data-preview-mode="book" class="${previewMode==='book'?'active':''}">📖 Livro</button><button data-preview-mode="magazine" class="${previewMode==='magazine'?'active':''}">📰 Revista</button><button data-preview-mode="reader" class="${previewMode==='reader'?'active':''}">🔤 Leitura limpa</button></div>
   </div>
   <div class="preview-device preview-${previewDevice}">
-   <div class="learn-runtime mode-${previewMode}" data-project="${p.id}" data-current="${start.id}" data-mode="${previewMode}">
+   <div class="learn-runtime mode-${previewMode} ${ensureA11y(p).highContrast?'a11y-high-contrast':''} ${ensureA11y(p).reduceMotion?'a11y-reduce-motion':''} ${ensureA11y(p).focusOutline!==false?'a11y-focus':''}" style="--a11y-scale:${ensureA11y(p).fontScale/100}" data-project="${p.id}" data-current="${start.id}" data-mode="${previewMode}">
     <header><small>Pré-visualização</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'')}</p></header>
     <main id="learnRuntimeStage"></main>
     <footer><button class="soft" id="runtimePrev" type="button">← Voltar</button><span id="runtimeCounter"></span><button class="primary" id="runtimeNext" type="button">Avançar →</button></footer>
