@@ -875,6 +875,15 @@ function wireAdvancedRuntime(p,s,dialog,runtime){
   $('[data-tv-back]',box).onclick=()=>{const v=$('video',screen);if(v)v.currentTime=Math.max(0,v.currentTime-10)};
   $('[data-tv-forward]',box).onclick=()=>{const v=$('video',screen);if(v)v.currentTime=Math.min(v.duration||Infinity,v.currentTime+10)};
   qBtn.onclick=()=>qBox.hidden=!qBox.hidden;
+  const sendBtn=$('[data-tv-send]',box),qText=$('textarea',qBox),qStatus=$('[data-tv-status]',box);
+  if(sendBtn)sendBtn.onclick=async()=>{
+   const ch=getChannel(),msg=qText.value.trim(),v=$('video',screen);if(!msg)return;
+   qStatus.textContent='Enviando...';
+   const payload={id:uid('support'),schema:'keise-learning/support-v1',projectId:p.id,projectTitle:p.title,context:p.context||'',slideId:s.id,slideTitle:s.title||'',videoId:el.id,videoTitle:'TV · '+(ch?.title||'Canal'),timestamp:v&&Number.isFinite(v.currentTime)?Math.round(v.currentTime*10)/10:null,kind:'question',message:msg,privacy:ensureProjectSupport(p).defaultPrivacy||'private',createdAt:new Date().toISOString()};
+   const result=await sendSupportPayload(p,payload);
+   qStatus.textContent=result.sent?'Enviado para a mediação.':'Rascunho salvo neste dispositivo.';
+   if(result.sent)qText.value='';
+  };
   renderChannel();
  });
 }function wireRuntimeSpeech(p,s,dialog){
