@@ -4,7 +4,7 @@ const META_KEY='keise-creative-v1';
 const DB_NAME='keise-creative-media-v1';
 const STORE='assets';
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
-let root=null,state=load(),mode='library',activeProjectId=null,activeClipId=null,urlCache=new Map();
+let root=null,state=load(),mode='library',activeProjectId=null,activeClipId=null,urlCache=new Map(),teleRaf=null,teleLast=0,teleRunning=false,teleKeyHandler=null;
 
 function blank(){return{version:1,projects:[]}}
 function load(){try{const x=JSON.parse(localStorage.getItem(META_KEY)||'null');return x&&x.version===1?x:blank()}catch{return blank()}}
@@ -39,7 +39,7 @@ function editor(){
  const p=project(),c=clip();if(!p){mode='library';return library()}
  return `
  <section class="creative-editor">
-  <header class="creative-top"><button class="soft" id="creativeBack">← Projetos</button><div><small>Keise Creative</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'Projeto audiovisual')}</p></div><div class="creative-top-actions"><span>● salvo localmente</span><button class="soft" id="creativeProjectBackup">Salvar projeto</button><button class="primary" id="creativeRender" ${c?'':'disabled'}>Renderizar clipe</button></div></header>
+  <header class="creative-top"><button class="soft" id="creativeBack">← Projetos</button><div><small>Keise Creative</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'Projeto audiovisual')}</p></div><div class="creative-top-actions"><span>● salvo localmente</span><button class="soft" id="creativeTeleprompter">📝 Teleprompter</button><button class="soft" id="creativeProjectBackup">Salvar projeto</button><button class="primary" id="creativeRender" ${c?'':'disabled'}>Renderizar clipe</button></div></header>
   <div class="creative-workspace">
    <aside class="creative-media"><div class="creative-side-head"><b>Mídia</b><button class="tiny" id="creativeImport">＋ Importar</button></div><input id="creativeFile" type="file" accept="video/*" hidden><div class="creative-clip-list">${p.clips.length?p.clips.map(x=>`<button class="${x.id===activeClipId?'active':''}" data-creative-clip="${x.id}"><span>🎞️</span><span><b>${esc(x.name)}</b><small>${Number(x.duration||0).toFixed(1)}s</small></span></button>`).join(''):empty('📥','Sem mídia','Importe um vídeo para começar.')}</div></aside>
    <section class="creative-stage-area">
@@ -57,6 +57,33 @@ function editor(){
     ${c?'<button class="tiny danger-text" id="creativeDeleteClip">Excluir clipe deste projeto</button>':''}
    </aside>
   </div>
+  <dialog class="dialog wide creative-teleprompter-dialog" id="creativeTeleprompterDialog">
+   <button class="dialog-close" type="button" data-creative-close>×</button>
+   <div class="dialog-icon">📝</div><h2>Teleprompter</h2>
+   <p>O roteiro fica salvo neste projeto. Ajuste como prefere ler e abra o modo de apresentação quando estiver pronta.</p>
+   <div class="tele-form-grid">
+    <label>Roteiro<textarea id="teleScript" rows="14" placeholder="Cole ou escreva aqui o que deseja falar...">${esc(p.teleprompter?.script||'')}</textarea></label>
+    <div class="tele-settings">
+     <label>Velocidade <span id="teleSpeedValue">${p.teleprompter?.speed||32}</span><input id="teleSpeed" type="range" min="8" max="120" value="${p.teleprompter?.speed||32}"></label>
+     <label>Tamanho da letra <span id="teleFontValue">${p.teleprompter?.fontSize||52}px</span><input id="teleFont" type="range" min="28" max="90" value="${p.teleprompter?.fontSize||52}"></label>
+     <label>Espaçamento <span id="teleLineValue">${p.teleprompter?.lineHeight||1.55}</span><input id="teleLine" type="range" min="1.2" max="2.2" step=".05" value="${p.teleprompter?.lineHeight||1.55}"></label>
+     <label>Contagem antes de começar<select id="teleCountdown"><option value="0" ${Number(p.teleprompter?.countdown||3)===0?'selected':''}>Sem contagem</option><option value="3" ${Number(p.teleprompter?.countdown??3)===3?'selected':''}>3 segundos</option><option value="5" ${Number(p.teleprompter?.countdown||3)===5?'selected':''}>5 segundos</option><option value="10" ${Number(p.teleprompter?.countdown||3)===10?'selected':''}>10 segundos</option></select></label>
+     <label class="creative-check"><input id="teleMirror" type="checkbox" ${p.teleprompter?.mirror?'checked':''}> Espelhar texto</label>
+     <label class="creative-check"><input id="teleCenterGuide" type="checkbox" ${p.teleprompter?.centerGuide!==false?'checked':''}> Mostrar linha-guia central</label>
+     <div class="tele-shortcuts"><b>Atalhos</b><small>Espaço: pausar/continuar · ↑/↓: ajustar velocidade · Home: voltar ao início · Esc: sair</small></div>
+    </div>
+   </div>
+   <div class="dialog-actions"><button class="soft" type="button" data-creative-close>Fechar</button><button class="primary" type="button" id="teleOpenRun">▶ Abrir teleprompter</button></div>
+  </dialog>
+  <dialog id="creativeTeleRun" class="creative-tele-run">
+   <div class="tele-run-toolbar">
+    <div><b>📝 Teleprompter</b><small id="teleRunStatus">pronto</small></div>
+    <div class="tele-run-buttons"><button type="button" id="teleRunSlower">− Velocidade</button><button type="button" id="teleRunToggle">▶ Iniciar</button><button type="button" id="teleRunFaster">＋ Velocidade</button><button type="button" id="teleRunRestart">↺ Início</button><button type="button" id="teleRunClose">Fechar</button></div>
+   </div>
+   <div class="tele-countdown" id="teleCountdownOverlay" hidden></div>
+   <div class="tele-guide" id="teleGuide"></div>
+   <div class="tele-scroll" id="teleScroll"><div class="tele-text" id="teleText"></div></div>
+  </dialog>
   <dialog class="dialog" id="creativeRenderDialog"><button class="dialog-close" type="button" data-creative-close>×</button><div class="dialog-icon">🎞️</div><h2>Renderização local</h2><p id="creativeRenderStatus">Preparando...</p><progress id="creativeRenderProgress" max="100" value="0"></progress></dialog>
  </section>`;
 }
@@ -70,7 +97,7 @@ function bindLibrary(){
  $$('[data-creative-open]',root).forEach(b=>b.onclick=()=>{activeProjectId=b.dataset.creativeOpen;activeClipId=project()?.clips[0]?.id||null;mode='editor';render()});
 }
 function createProject(title,context,aspect='16:9'){
- const p={id:uid('creative'),title,context,aspect,clips:[],overlayText:'',textPosition:'bottom',textSize:42,preset:'natural',brightness:100,contrast:100,saturation:100,cinemaBars:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const p={id:uid('creative'),title,context,aspect,clips:[],overlayText:'',textPosition:'bottom',textSize:42,preset:'natural',brightness:100,contrast:100,saturation:100,cinemaBars:false,teleprompter:{script:'',speed:32,fontSize:52,lineHeight:1.55,countdown:3,mirror:false,centerGuide:true},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
  state.projects.unshift(p);save();activeProjectId=p.id;activeClipId=null;mode='editor';render();
 }
 async function importFile(file){
@@ -82,9 +109,89 @@ async function importFile(file){
 function updatePreview(){
  const p=project(),video=$('#creativeVideo',root),overlay=$('#creativeOverlay',root);if(video)video.style.filter=filterCss(p);if(overlay){overlay.textContent=p.overlayText||'';overlay.className='creative-overlay pos-'+(p.textPosition||'bottom');overlay.style.fontSize=(p.textSize||42)+'px'}
 }
+function ensureTele(p){
+ p.teleprompter??={script:'',speed:32,fontSize:52,lineHeight:1.55,countdown:3,mirror:false,centerGuide:true};
+ return p.teleprompter;
+}
+function stopTeleprompter(){
+ teleRunning=false;
+ if(teleRaf){cancelAnimationFrame(teleRaf);teleRaf=null}
+ const btn=$('#teleRunToggle',root),status=$('#teleRunStatus',root);
+ if(btn)btn.textContent='▶ Continuar';
+ if(status)status.textContent='pausado';
+}
+function teleStep(ts){
+ const p=project(),cfg=p?ensureTele(p):null,scroll=$('#teleScroll',root);
+ if(!teleRunning||!cfg||!scroll)return;
+ if(!teleLast)teleLast=ts;
+ const dt=(ts-teleLast)/1000;teleLast=ts;
+ scroll.scrollTop+=Number(cfg.speed||32)*dt;
+ if(scroll.scrollTop+scroll.clientHeight>=scroll.scrollHeight-2){stopTeleprompter();const s=$('#teleRunStatus',root);if(s)s.textContent='fim do roteiro';return}
+ teleRaf=requestAnimationFrame(teleStep);
+}
+function startTeleprompter(){
+ if(teleRunning)return;
+ teleRunning=true;teleLast=0;
+ const btn=$('#teleRunToggle',root),status=$('#teleRunStatus',root);
+ if(btn)btn.textContent='⏸ Pausar';
+ if(status)status.textContent='rolando';
+ teleRaf=requestAnimationFrame(teleStep);
+}
+function applyTeleRunAppearance(p){
+ const cfg=ensureTele(p),text=$('#teleText',root),scroll=$('#teleScroll',root),guide=$('#teleGuide',root);
+ if(text){text.textContent=cfg.script||'Escreva o roteiro antes de iniciar.';text.style.fontSize=(cfg.fontSize||52)+'px';text.style.lineHeight=String(cfg.lineHeight||1.55);text.style.transform=cfg.mirror?'scaleX(-1)':'none';}
+ if(scroll)scroll.scrollTop=0;
+ if(guide)guide.hidden=cfg.centerGuide===false;
+}
+async function openTeleprompterRun(p){
+ const cfg=ensureTele(p),dlg=$('#creativeTeleRun',root),count=$('#teleCountdownOverlay',root);
+ applyTeleRunAppearance(p);stopTeleprompter();teleLast=0;
+ dlg.showModal();
+ try{if(dlg.requestFullscreen)await dlg.requestFullscreen()}catch{}
+ const seconds=Number(cfg.countdown||0);
+ if(seconds>0){
+  count.hidden=false;
+  for(let n=seconds;n>0;n--){count.textContent=n;await new Promise(r=>setTimeout(r,1000));if(!dlg.open)return}
+  count.textContent='COMEÇAR';await new Promise(r=>setTimeout(r,500));count.hidden=true;startTeleprompter();
+ }else{count.hidden=true}
+}
+function closeTeleprompterRun(){
+ stopTeleprompter();
+ const dlg=$('#creativeTeleRun',root);
+ try{if(document.fullscreenElement)document.exitFullscreen()}catch{}
+ if(dlg?.open)dlg.close();
+ if(teleKeyHandler){document.removeEventListener('keydown',teleKeyHandler);teleKeyHandler=null}
+}
+function bindTeleprompter(p){
+ const cfg=ensureTele(p),dlg=$('#creativeTeleprompterDialog',root);
+ $('#creativeTeleprompter',root).onclick=()=>dlg.showModal();
+ const script=$('#teleScript',root);if(script)script.oninput=e=>{cfg.script=e.target.value;touch()};
+ const speed=$('#teleSpeed',root);if(speed)speed.oninput=e=>{cfg.speed=Number(e.target.value);$('#teleSpeedValue',root).textContent=e.target.value;touch()};
+ const font=$('#teleFont',root);if(font)font.oninput=e=>{cfg.fontSize=Number(e.target.value);$('#teleFontValue',root).textContent=e.target.value+'px';touch()};
+ const line=$('#teleLine',root);if(line)line.oninput=e=>{cfg.lineHeight=Number(e.target.value);$('#teleLineValue',root).textContent=e.target.value;touch()};
+ const cd=$('#teleCountdown',root);if(cd)cd.onchange=e=>{cfg.countdown=Number(e.target.value);touch()};
+ const mir=$('#teleMirror',root);if(mir)mir.onchange=e=>{cfg.mirror=e.target.checked;touch()};
+ const guide=$('#teleCenterGuide',root);if(guide)guide.onchange=e=>{cfg.centerGuide=e.target.checked;touch()};
+ $('#teleOpenRun',root).onclick=()=>{dlg.close();openTeleprompterRun(p)};
+ $('#teleRunToggle',root).onclick=()=>teleRunning?stopTeleprompter():startTeleprompter();
+ $('#teleRunSlower',root).onclick=()=>{cfg.speed=Math.max(8,Number(cfg.speed||32)-5);touch();$('#teleRunStatus',root).textContent='velocidade '+cfg.speed};
+ $('#teleRunFaster',root).onclick=()=>{cfg.speed=Math.min(120,Number(cfg.speed||32)+5);touch();$('#teleRunStatus',root).textContent='velocidade '+cfg.speed};
+ $('#teleRunRestart',root).onclick=()=>{const s=$('#teleScroll',root);if(s)s.scrollTop=0;teleLast=0;$('#teleRunStatus',root).textContent='início'};
+ $('#teleRunClose',root).onclick=closeTeleprompterRun;
+ teleKeyHandler=e=>{
+  const run=$('#creativeTeleRun',root);if(!run?.open)return;
+  if(e.code==='Space'){e.preventDefault();teleRunning?stopTeleprompter():startTeleprompter()}
+  else if(e.key==='ArrowUp'){e.preventDefault();cfg.speed=Math.min(120,Number(cfg.speed||32)+5);touch();$('#teleRunStatus',root).textContent='velocidade '+cfg.speed}
+  else if(e.key==='ArrowDown'){e.preventDefault();cfg.speed=Math.max(8,Number(cfg.speed||32)-5);touch();$('#teleRunStatus',root).textContent='velocidade '+cfg.speed}
+  else if(e.key==='Home'){e.preventDefault();const s=$('#teleScroll',root);if(s)s.scrollTop=0}
+  else if(e.key==='Escape'){closeTeleprompterRun()}
+ };
+ document.addEventListener('keydown',teleKeyHandler);
+}
 function bindEditor(){
  const p=project(),c=clip();
- $('#creativeBack',root).onclick=()=>{mode='library';render()};
+ bindTeleprompter(p);
+ $('#creativeBack',root).onclick=()=>{stopTeleprompter();if(teleKeyHandler){document.removeEventListener('keydown',teleKeyHandler);teleKeyHandler=null}mode='library';render()};
  $('#creativeImport',root).onclick=()=>$('#creativeFile',root).click();$('#creativeFile',root).onchange=e=>{importFile(e.target.files?.[0]);e.target.value=''};
  $$('[data-creative-clip]',root).forEach(b=>b.onclick=()=>{activeClipId=b.dataset.creativeClip;render()});
  $('#creativeAspectProp',root).onchange=e=>{p.aspect=e.target.value;touch();render()};
