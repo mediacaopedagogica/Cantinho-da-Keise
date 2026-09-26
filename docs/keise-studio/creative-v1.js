@@ -4,7 +4,7 @@ const META_KEY='keise-creative-v1';
 const DB_NAME='keise-creative-media-v1';
 const STORE='assets';
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
-let root=null,state=load(),mode='library',activeProjectId=null,activeClipId=null,urlCache=new Map(),teleRaf=null,teleLast=0,teleRunning=false,teleKeyHandler=null;
+let root=null,state=load(),mode='library',activeProjectId=null,activeClipId=null,urlCache=new Map(),teleRaf=null,teleLast=0,teleRunning=false,teleKeyHandler=null,liveInterval=null,activeLiveSessionId=null;
 
 function blank(){return{version:1,projects:[]}}
 function load(){try{const x=JSON.parse(localStorage.getItem(META_KEY)||'null');return x&&x.version===1?x:blank()}catch{return blank()}}
@@ -39,7 +39,7 @@ function editor(){
  const p=project(),c=clip();if(!p){mode='library';return library()}
  return `
  <section class="creative-editor">
-  <header class="creative-top"><button class="soft" id="creativeBack">← Projetos</button><div><small>Keise Creative</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'Projeto audiovisual')}</p></div><div class="creative-top-actions"><span>● salvo localmente</span><button class="soft" id="creativeTeleprompter">📝 Teleprompter</button><button class="soft" id="creativeProjectBackup">Salvar projeto</button><button class="primary" id="creativeRender" ${c?'':'disabled'}>Renderizar clipe</button></div></header>
+  <header class="creative-top"><button class="soft" id="creativeBack">← Projetos</button><div><small>Keise Creative</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'Projeto audiovisual')}</p></div><div class="creative-top-actions"><span>● salvo localmente</span><button class="soft" id="creativeTeleprompter">📝 Teleprompter</button><button class="soft" id="creativeLiveAssist">🔴 Live Assist</button><button class="soft" id="creativeProjectBackup">Salvar projeto</button><button class="primary" id="creativeRender" ${c?'':'disabled'}>Renderizar clipe</button></div></header>
   <div class="creative-workspace">
    <aside class="creative-media"><div class="creative-side-head"><b>Mídia</b><button class="tiny" id="creativeImport">＋ Importar</button></div><input id="creativeFile" type="file" accept="video/*" hidden><div class="creative-clip-list">${p.clips.length?p.clips.map(x=>`<button class="${x.id===activeClipId?'active':''}" data-creative-clip="${x.id}"><span>🎞️</span><span><b>${esc(x.name)}</b><small>${Number(x.duration||0).toFixed(1)}s</small></span></button>`).join(''):empty('📥','Sem mídia','Importe um vídeo para começar.')}</div></aside>
    <section class="creative-stage-area">
@@ -57,6 +57,50 @@ function editor(){
     ${c?'<button class="tiny danger-text" id="creativeDeleteClip">Excluir clipe deste projeto</button>':''}
    </aside>
   </div>
+  <dialog class="dialog wide creative-live-dialog" id="creativeLiveAssistDialog">
+   <button class="dialog-close" type="button" data-creative-close>×</button>
+   <div class="dialog-icon">🔴</div><h2>Live Assist</h2>
+   <p>Configure como o Studio deve ajudar durante a transmissão. A API é opcional; a central de marcações funciona localmente.</p>
+   <form id="liveAssistForm">
+    <div class="live-config-grid">
+     <label>Modo<select id="liveMode"><option value="off" ${p.liveAssist?.mode==='off'?'selected':''}>Desligado</option><option value="manual" ${!p.liveAssist?.mode||p.liveAssist?.mode==='manual'?'selected':''}>Sem IA · central manual</option><option value="ondemand" ${p.liveAssist?.mode==='ondemand'?'selected':''}>IA sob demanda</option><option value="director" ${p.liveAssist?.mode==='director'?'selected':''}>Diretor IA</option></select></label>
+     <label>Limite de API por live (US$)<input id="liveBudget" type="number" min="0" step=".10" value="${Number(p.liveAssist?.budgetLimit||0)}" placeholder="0 = não definido"></label>
+    </div>
+    <label>Endpoint seguro do conector <span class="live-optional">opcional</span><input id="liveEndpoint" type="url" value="${esc(p.liveAssist?.endpoint||'')}" placeholder="https://seu-conector/..."></label>
+    <p class="live-security">🔐 Nunca coloque chave secreta da API aqui. Quando conectarmos IA em tempo real, a chave deve ficar no servidor/conector, nunca no navegador ou no HTML da live.</p>
+    <div class="live-toggle-grid">
+     <label><input id="liveQuestions" type="checkbox" ${p.liveAssist?.questions!==false?'checked':''}> 💬 Dúvidas em tempo real</label>
+     <label><input id="liveMaterials" type="checkbox" ${p.liveAssist?.materials!==false?'checked':''}> 🔎 Liberar materiais</label>
+     <label><input id="liveComments" type="checkbox" ${p.liveAssist?.comments?'checked':''}> 💭 Comentários</label>
+     <label><input id="liveUnderstanding" type="checkbox" ${p.liveAssist?.understanding!==false?'checked':''}> 🧭 Termômetro de compreensão</label>
+     <label><input id="liveCaptions" type="checkbox" ${p.liveAssist?.autoCaptions?'checked':''}> 🔤 Legendas/transcrição ao vivo</label>
+     <label><input id="liveTeleFollow" type="checkbox" ${p.liveAssist?.teleprompterFollow?'checked':''}> 🎙 Teleprompter acompanha minha fala</label>
+     <label><input id="liveMarkCorrections" type="checkbox" ${p.liveAssist?.markCorrections!==false?'checked':''}> ⚑ Marcar correções para depois</label>
+     <label><input id="liveStopBudget" type="checkbox" ${p.liveAssist?.stopAtBudget!==false?'checked':''}> 💰 Parar IA ao atingir o limite</label>
+    </div>
+    <p class="live-api-note">Os modos com IA ficam preparados aqui, mas só usam API quando um conector seguro estiver realmente configurado. Sem API, nada deixa de funcionar.</p>
+    <div class="dialog-actions"><button class="soft" type="button" data-creative-close>Fechar</button><button class="soft" type="submit">Salvar</button><button class="primary" type="button" id="liveOpenCentral">▶ Abrir Central da Live</button></div>
+   </form>
+  </dialog>
+  <dialog class="creative-live-run" id="creativeLiveRun">
+   <header class="live-run-top"><div><b>🔴 Central da Live</b><small id="liveRunMode">modo local</small></div><div class="live-clock" id="liveClock">00:00:00</div><button type="button" id="liveEndSession">Encerrar</button></header>
+   <main class="live-run-body">
+    <section class="live-cue-panel"><h3>Marcar este momento</h3><p>Clique no que aconteceu agora. A marcação guarda o tempo da transmissão para você usar depois.</p>
+     <div class="live-cue-buttons">
+      <button data-live-cue="question">💬 Dúvida recebida</button>
+      <button data-live-cue="material">🔎 Mostrar material</button>
+      <button data-live-cue="quiz">❓ Criar pergunta</button>
+      <button data-live-cue="correction">⚑ Corrigir depois</button>
+      <button data-live-cue="chapter">📌 Novo capítulo</button>
+      <button data-live-cue="difficulty">🧭 Trecho difícil</button>
+      <button data-live-cue="highlight">✨ Destaque</button>
+      <button data-live-cue="example">💡 Exemplo importante</button>
+     </div>
+     <label class="live-note-label">Observação opcional<textarea id="liveCueNote" placeholder="Ex.: revisar a explicação da norma; aluno perguntou sobre..."></textarea></label>
+    </section>
+    <section class="live-event-panel"><div class="live-event-head"><div><h3>Roteiro do que aconteceu</h3><p>Fica salvo no projeto para a pós-produção.</p></div><span id="liveConnectorStatus"></span></div><div id="liveCueList" class="live-cue-list"></div></section>
+   </main>
+  </dialog>
   <dialog class="dialog wide creative-teleprompter-dialog" id="creativeTeleprompterDialog">
    <button class="dialog-close" type="button" data-creative-close>×</button>
    <div class="dialog-icon">📝</div><h2>Teleprompter</h2>
@@ -97,7 +141,7 @@ function bindLibrary(){
  $$('[data-creative-open]',root).forEach(b=>b.onclick=()=>{activeProjectId=b.dataset.creativeOpen;activeClipId=project()?.clips[0]?.id||null;mode='editor';render()});
 }
 function createProject(title,context,aspect='16:9'){
- const p={id:uid('creative'),title,context,aspect,clips:[],overlayText:'',textPosition:'bottom',textSize:42,preset:'natural',brightness:100,contrast:100,saturation:100,cinemaBars:false,teleprompter:{script:'',speed:32,fontSize:52,lineHeight:1.55,countdown:3,mirror:false,centerGuide:true},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+ const p={id:uid('creative'),title,context,aspect,clips:[],overlayText:'',textPosition:'bottom',textSize:42,preset:'natural',brightness:100,contrast:100,saturation:100,cinemaBars:false,teleprompter:{script:'',speed:32,fontSize:52,lineHeight:1.55,countdown:3,mirror:false,centerGuide:true},liveAssist:{mode:'manual',budgetLimit:0,endpoint:'',questions:true,materials:true,comments:false,understanding:true,autoCaptions:false,teleprompterFollow:false,markCorrections:true,stopAtBudget:true,sessions:[]},createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
  state.projects.unshift(p);save();activeProjectId=p.id;activeClipId=null;mode='editor';render();
 }
 async function importFile(file){
@@ -188,10 +232,54 @@ function bindTeleprompter(p){
  };
  document.addEventListener('keydown',teleKeyHandler);
 }
+function ensureLiveAssist(p){
+ p.liveAssist??={mode:'manual',budgetLimit:0,endpoint:'',questions:true,materials:true,comments:false,understanding:true,autoCaptions:false,teleprompterFollow:false,markCorrections:true,stopAtBudget:true,sessions:[]};
+ p.liveAssist.sessions??=[];return p.liveAssist;
+}
+function liveSession(p){
+ const cfg=ensureLiveAssist(p);return cfg.sessions.find(s=>s.id===activeLiveSessionId)||null;
+}
+function formatLiveTime(sec){
+ const n=Math.max(0,Math.floor(sec||0)),h=Math.floor(n/3600),m=Math.floor((n%3600)/60),s=n%60;
+ return [h,m,s].map(x=>String(x).padStart(2,'0')).join(':');
+}
+function liveElapsed(session){return session?Math.max(0,(Date.now()-new Date(session.startedAt).getTime())/1000):0}
+function renderLiveCueList(p){
+ const session=liveSession(p),list=$('#liveCueList',root);if(!list)return;
+ if(!session||!session.cues.length){list.innerHTML='<div class="live-empty">✨ Nenhuma marcação ainda.</div>';return}
+ const labels={question:'💬 Dúvida recebida',material:'🔎 Mostrar material',quiz:'❓ Criar pergunta',correction:'⚑ Corrigir depois',chapter:'📌 Novo capítulo',difficulty:'🧭 Trecho difícil',highlight:'✨ Destaque',example:'💡 Exemplo importante'};
+ list.innerHTML=[...session.cues].reverse().map(cue=>`<article><time>${formatLiveTime(cue.at)}</time><div><b>${labels[cue.type]||cue.type}</b>${cue.note?`<p>${esc(cue.note)}</p>`:''}</div></article>`).join('');
+}
+function stopLiveTimer(){if(liveInterval){clearInterval(liveInterval);liveInterval=null}}
+function startLiveTimer(p){
+ stopLiveTimer();const tick=()=>{const s=liveSession(p),clock=$('#liveClock',root);if(clock&&s)clock.textContent=formatLiveTime(liveElapsed(s))};tick();liveInterval=setInterval(tick,1000);
+}
+function openLiveCentral(p){
+ const cfg=ensureLiveAssist(p),session={id:uid('live'),startedAt:new Date().toISOString(),endedAt:null,cues:[]};cfg.sessions.unshift(session);activeLiveSessionId=session.id;touch();
+ const dlg=$('#creativeLiveRun',root),mode=$('#liveRunMode',root),status=$('#liveConnectorStatus',root);
+ if(mode)mode.textContent=cfg.mode==='director'?'Diretor IA':cfg.mode==='ondemand'?'IA sob demanda':cfg.mode==='off'?'IA desligada':'central manual';
+ if(status)status.textContent=cfg.endpoint?'conector configurado':'local · sem conector';
+ $('#liveCueNote',root).value='';renderLiveCueList(p);dlg.showModal();startLiveTimer(p);
+}
+function addLiveCue(p,type){
+ const s=liveSession(p);if(!s)return;const note=$('#liveCueNote',root)?.value.trim()||'';s.cues.push({id:uid('cue'),type,at:Math.round(liveElapsed(s)*10)/10,note,createdAt:new Date().toISOString()});if($('#liveCueNote',root))$('#liveCueNote',root).value='';touch();renderLiveCueList(p);
+}
+function closeLiveCentral(p){
+ const s=liveSession(p);if(s&&!s.endedAt)s.endedAt=new Date().toISOString();touch();stopLiveTimer();activeLiveSessionId=null;const dlg=$('#creativeLiveRun',root);if(dlg?.open)dlg.close();
+}
+function bindLiveAssist(p){
+ const cfg=ensureLiveAssist(p),dlg=$('#creativeLiveAssistDialog',root);
+ $('#creativeLiveAssist',root).onclick=()=>dlg.showModal();
+ $('#liveAssistForm',root).onsubmit=e=>{e.preventDefault();cfg.mode=$('#liveMode',root).value;cfg.budgetLimit=Math.max(0,Number($('#liveBudget',root).value)||0);cfg.endpoint=$('#liveEndpoint',root).value.trim();cfg.questions=$('#liveQuestions',root).checked;cfg.materials=$('#liveMaterials',root).checked;cfg.comments=$('#liveComments',root).checked;cfg.understanding=$('#liveUnderstanding',root).checked;cfg.autoCaptions=$('#liveCaptions',root).checked;cfg.teleprompterFollow=$('#liveTeleFollow',root).checked;cfg.markCorrections=$('#liveMarkCorrections',root).checked;cfg.stopAtBudget=$('#liveStopBudget',root).checked;touch();toast('Live Assist configurado.')};
+ $('#liveOpenCentral',root).onclick=()=>{cfg.mode=$('#liveMode',root).value;cfg.budgetLimit=Math.max(0,Number($('#liveBudget',root).value)||0);cfg.endpoint=$('#liveEndpoint',root).value.trim();cfg.questions=$('#liveQuestions',root).checked;cfg.materials=$('#liveMaterials',root).checked;cfg.comments=$('#liveComments',root).checked;cfg.understanding=$('#liveUnderstanding',root).checked;cfg.autoCaptions=$('#liveCaptions',root).checked;cfg.teleprompterFollow=$('#liveTeleFollow',root).checked;cfg.markCorrections=$('#liveMarkCorrections',root).checked;cfg.stopAtBudget=$('#liveStopBudget',root).checked;touch();dlg.close();openLiveCentral(p)};
+ $('[data-live-cue]',root).forEach(b=>b.onclick=()=>addLiveCue(p,b.dataset.liveCue));
+ $('#liveEndSession',root).onclick=()=>closeLiveCentral(p);
+}
 function bindEditor(){
  const p=project(),c=clip();
  bindTeleprompter(p);
- $('#creativeBack',root).onclick=()=>{stopTeleprompter();if(teleKeyHandler){document.removeEventListener('keydown',teleKeyHandler);teleKeyHandler=null}mode='library';render()};
+ bindLiveAssist(p);
+ $('#creativeBack',root).onclick=()=>{stopTeleprompter();stopLiveTimer();if(teleKeyHandler){document.removeEventListener('keydown',teleKeyHandler);teleKeyHandler=null}mode='library';render()};
  $('#creativeImport',root).onclick=()=>$('#creativeFile',root).click();$('#creativeFile',root).onchange=e=>{importFile(e.target.files?.[0]);e.target.value=''};
  $$('[data-creative-clip]',root).forEach(b=>b.onclick=()=>{activeClipId=b.dataset.creativeClip;render()});
  $('#creativeAspectProp',root).onchange=e=>{p.aspect=e.target.value;touch();render()};
