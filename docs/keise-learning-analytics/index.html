@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f7f4ff">
+<title>Keise Learning Analytics</title>
+<meta name="description" content="Acompanhamento de impacto e engajamento dos recursos educacionais digitais.">
+<link rel="stylesheet" href="./styles.css?v=1">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Navegação principal">
+    <a class="brand" href="#overview" data-route="overview" aria-label="Keise Learning Analytics - início">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span><b>Keise</b><small>Learning Analytics</small></span>
+    </a>
+    <p class="scribble">Aprender gera possibilidades ♡</p>
+    <nav>
+      <button class="nav-item active" data-view="overview"><span>⌂</span>Visão geral</button>
+      <button class="nav-item" data-view="projects"><span>▣</span>Projetos</button>
+      <button class="nav-item" data-view="participants"><span>♧</span>Participantes</button>
+      <button class="nav-item" data-view="engagement"><span>▥</span>Engajamento</button>
+      <button class="nav-item" data-view="learning"><span>⌁</span>Aprendizagem</button>
+      <button class="nav-item" data-view="feedback"><span>♡</span>Feedbacks</button>
+      <button class="nav-item" data-view="reports"><span>▤</span>Relatórios</button>
+    </nav>
+    <div class="privacy-card">
+      <span>🔒</span>
+      <div><b>Dados locais</b><small>Nada é enviado por este painel. Os dados ficam neste navegador.</small></div>
+    </div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <div>
+        <p class="hello">☀️ Olá, Keise!</p>
+        <h1>Keise Learning Analytics</h1>
+        <p>Acompanhamento de impacto e engajamento dos recursos educacionais digitais</p>
+      </div>
+      <div class="top-actions">
+        <button class="secondary" id="backupButton" type="button">Salvar backup</button>
+        <button class="primary refresh" id="refreshButton" type="button">↻ <span>Atualizar dados</span></button>
+        <small id="lastUpdate">Nenhuma atualização realizada</small>
+      </div>
+    </header>
+
+    <section class="filters" aria-label="Filtros">
+      <label>Projeto
+        <select id="projectFilter">
+          <option value="all">Todos os projetos</option>
+        </select>
+      </label>
+      <label>Período
+        <select id="periodFilter">
+          <option value="all">Todo o período</option>
+          <option value="7">Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="semester">Semestre atual</option>
+        </select>
+      </label>
+      <button class="quiet" id="resetFilters" type="button">Limpar filtros</button>
+      <span class="filter-note">Atualização manual · zero polling</span>
+    </section>
+
+    <div id="viewRoot" class="view-root"></div>
+  </main>
+</div>
+
+<input id="fileInput" type="file" accept=".json,.csv,application/json,text/csv" multiple hidden>
+
+<dialog id="importDialog" class="dialog">
+  <button class="dialog-close" type="button" data-close-dialog aria-label="Fechar">×</button>
+  <div class="dialog-illustration">📚✨</div>
+  <h2>Atualizar dados</h2>
+  <p>Selecione um ou mais arquivos exportados pelos projetos. O painel mescla os registros, evita duplicidades e recalcula tudo localmente.</p>
+  <div class="drop-zone" id="dropZone">
+    <strong>Arraste os arquivos aqui</strong>
+    <span>ou</span>
+    <button class="primary" id="chooseFiles" type="button">Escolher arquivos</button>
+    <small>Formatos: JSON da Keise Learning Analytics ou CSV padronizado.</small>
+  </div>
+  <div class="import-status" id="importStatus" role="status"></div>
+</dialog>
+
+<dialog id="detailsDialog" class="dialog wide">
+  <button class="dialog-close" type="button" data-close-dialog aria-label="Fechar">×</button>
+  <div id="detailsContent"></div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="./app.js?v=1"></script>
+</body>
+</html>
