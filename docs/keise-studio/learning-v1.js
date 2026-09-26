@@ -177,5 +177,5 @@ function exportedHtml(p){
 function exportProject(p){const html=exportedHtml(p),blob=new Blob([html],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=(p.title||'atividade').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'.html';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('HTML exportado.')}
 function render(){if(!root)return;root.innerHTML=mode==='library'?library():editor();mode==='library'?bindLibrary():bindEditor()}
 function mount(target){root=target;render()}
-window.KeiseLearning=Object.freeze({mount,exportState:()=>JSON.parse(JSON.stringify(state)),openProject(id){activeProjectId=id;mode='editor';selectedElementId=null;if(root)render()}});
+window.KeiseLearning=Object.freeze({mount,exportState:()=>JSON.parse(JSON.stringify(state)),openProject(id){activeProjectId=id;mode='editor';selectedElementId=null;if(root)render()},create(title,context){createProject(title,context||'')},showNew(){mode='library';if(root){render();setTimeout(()=>$('#learnCreateDialog',root)?.showModal(),0)}}});
 })();
