@@ -34,7 +34,7 @@ button,input,textarea{font:inherit} .top{position:sticky;top:0;z-index:20;backgr
 <section class="login" id="login"><h2>Acesso da mediadora</h2><p>Digite a senha da área de mediação. Seus comentários serão publicados automaticamente como <strong>Mediadora Pedagógica</strong>, sem nome e sem estrelas.</p>
 <form id="loginForm"><input id="password" type="password" autocomplete="current-password" placeholder="Senha"><button class="primary" type="submit">Entrar</button></form></section>
 <section class="app" id="app">
-<div class="toolbar"><div><h2>Comentários da turma</h2><small><span id="total">0</span> comentários</small></div><div class="actions"><button class="ghost" id="expand" type="button">Expandir todos</button><button class="ghost" id="collapse" type="button">Recolher todos</button><button class="ghost" id="logout" type="button">Sair</button></div></div>
+<div class="toolbar"><div><h2>Comentários da turma</h2><small><span id="total">0</span> comentários</small></div><div class="actions"><button class="ghost" id="expand" type="button">Expandir todos</button><button class="ghost" id="collapse" type="button">Recolher todos</button><button class="ghost" id="exportKLA" type="button">Exportar para Keise Analytics</button><button class="ghost" id="logout" type="button">Sair</button></div></div>
 <form class="general" id="generalForm"><textarea id="generalText" maxlength="1800" placeholder="Publicar uma orientação geral como Mediadora Pedagógica..."></textarea><div class="row"><button class="primary" type="submit">Publicar orientação</button></div></form>
 <div class="list" id="list"><div class="empty">Carregando comentários...</div></div>
 </section></main><div class="toast" id="toast"></div>
@@ -86,6 +86,48 @@ function node(c,open){
 function render(open=new Set()){$("#total").textContent=comments.length;const l=$("#list");l.innerHTML="";if(!comments.length){l.innerHTML='<div class="empty">Ainda não há comentários na dinâmica.</div>';return}tree().forEach(c=>l.appendChild(node(c,open)))}
 $("#expand").onclick=()=>$$(".thread").forEach(d=>d.open=true);$("#collapse").onclick=()=>$$(".thread").forEach(d=>d.open=false);
 $("#generalForm").onsubmit=async e=>{e.preventDefault();const body=$("#generalText").value.trim();if(body.length<2){toast("Escreva sua orientação.");return}const q=await supabase.rpc("submit_mediator_comment_with_password",{p_activity_key:ACTIVITY_KEY,p_parent_id:null,p_body:body,p_password:pass});if(q.error){toast(q.error.message||"Não foi possível publicar.");return}$("#generalText").value="";await refresh();toast("Orientação publicada como Mediadora Pedagógica.")};
+
+function downloadKLA(){
+ const events=[];
+ comments.forEach(c=>events.push({
+  id:'tours-comment-'+c.id,
+  projectId:'tours-virtuais',
+  type:c.parent_id?'reply':'comment',
+  at:c.created_at,
+  participantId:c.normalized_name||c.author_name,
+  participantName:c.author_name,
+  actorRole:c.author_role==='mediator'?'mediator':'student',
+  metadata:{commentId:c.id,parentId:c.parent_id||null}
+ }));
+ ratings.forEach(r=>events.push({
+  id:'tours-rating-'+r.id,
+  projectId:'tours-virtuais',
+  type:'feedback',
+  at:r.created_at,
+  participantId:r.normalized_name||r.author_name,
+  participantName:r.author_name,
+  actorRole:'student',
+  rating:r.stars
+ }));
+ const payload={
+  schema:'keise-learning-analytics/v1',
+  project:{id:'tours-virtuais',name:'Tours Virtuais',discipline:'Mercado e Operações Imobiliárias'},
+  generatedAt:new Date().toISOString(),
+  events
+ };
+ const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json;charset=utf-8'});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement('a');
+ a.href=url;
+ a.download='keise-analytics-tours-'+new Date().toISOString().slice(0,10)+'.json';
+ document.body.append(a);
+ a.click();
+ a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+ toast(events.length?'Arquivo da Keise Learning Analytics preparado.':'Ainda não há dados para exportar.');
+}
+$("#exportKLA").onclick=downloadKLA;
+
 addManualRefresh($(".toolbar .actions"),refresh,'ghost');
 installModeration({client:supabase,activity:ACTIVITY_KEY,getPassword:()=>pass,getComments:()=>comments,refresh,notify:toast});
 if(pass)unlock(pass);
