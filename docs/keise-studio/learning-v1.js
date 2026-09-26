@@ -2,7 +2,7 @@
 (()=>{
 const KEY='keise-learning-author-v1';
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
-let root=null,state=load(),mode='library',activeProjectId=null,selectedElementId=null,learnMediaUrls=new Map(),recordStream=null,recordRecorder=null,recordChunks=[];
+let root=null,state=load(),mode='library',activeProjectId=null,selectedElementId=null,learnMediaUrls=new Map(),recordStream=null,recordRecorder=null,recordChunks=[],previewDevice='desktop',previewMode='screen';
 
 function blank(){return{version:1,projects:[]}}
 function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');return x&&x.version===1?x:blank()}catch{return blank()}}
@@ -283,7 +283,34 @@ function renderCanvasLight(){
 }
 function previewMarkup(p){
  const start=p.slides[0];
- return `<div class="learn-runtime" data-project="${p.id}" data-current="${start.id}"><header><small>Pré-visualização</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'')}</p></header><main id="learnRuntimeStage"></main><footer><button class="soft" id="runtimePrev" type="button">← Voltar</button><span id="runtimeCounter"></span><button class="primary" id="runtimeNext" type="button">Avançar →</button></footer></div>`;
+ return `<div class="learn-preview-shell">
+  <div class="learn-preview-toolbar">
+   <div class="preview-tool-group"><b>Dispositivo</b><button data-preview-device="desktop" class="${previewDevice==='desktop'?'active':''}">💻 Computador</button><button data-preview-device="tablet" class="${previewDevice==='tablet'?'active':''}">📟 Tablet</button><button data-preview-device="mobile" class="${previewDevice==='mobile'?'active':''}">📱 Celular</button></div>
+   <div class="preview-tool-group"><b>Leitura</b><button data-preview-mode="screen" class="${previewMode==='screen'?'active':''}">✨ Interativa</button><button data-preview-mode="book" class="${previewMode==='book'?'active':''}">📖 Livro</button><button data-preview-mode="magazine" class="${previewMode==='magazine'?'active':''}">📰 Revista</button><button data-preview-mode="reader" class="${previewMode==='reader'?'active':''}">🔤 Leitura limpa</button></div>
+  </div>
+  <div class="preview-device preview-${previewDevice}">
+   <div class="learn-runtime mode-${previewMode}" data-project="${p.id}" data-current="${start.id}" data-mode="${previewMode}">
+    <header><small>Pré-visualização</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'')}</p></header>
+    <main id="learnRuntimeStage"></main>
+    <footer><button class="soft" id="runtimePrev" type="button">← Voltar</button><span id="runtimeCounter"></span><button class="primary" id="runtimeNext" type="button">Avançar →</button></footer>
+   </div>
+  </div>
+ </div>`;
+}
+function readingElementMarkup(e){
+ if(e.type==='heading')return `<h2>${esc(e.text||'')}</h2>`;
+ if(e.type==='text')return `<p>${esc(e.text||'').replace(/\n/g,'<br>')}</p>`;
+ if(e.type==='video')return `<figure class="reading-media"><div class="reading-media-icon">🎬</div><figcaption>${esc(e.title||'Vídeo')}</figcaption></figure>`;
+ if(e.type==='reflection')return `<aside class="reading-callout"><b>💭 Para refletir</b><p>${esc(e.prompt||'')}</p></aside>`;
+ if(e.type==='quiz')return `<aside class="reading-callout"><b>❓ Para pensar</b><p>${esc(e.question||'')}</p></aside>`;
+ if(e.type==='button')return '';
+ return '';
+}
+function renderReadingRuntime(p,dialog,mode){
+ const stage=$('#learnRuntimeStage',dialog),runtime=$('.learn-runtime',dialog),footer=$('footer',runtime),counter=$('#runtimeCounter',dialog);
+ runtime.className='learn-runtime mode-'+mode;
+ stage.innerHTML=`<div class="reading-experience reading-${mode}">${p.slides.map((s,i)=>`<article class="reading-page"><header><span>Capítulo ${i+1}</span><h1>${esc(s.title||'')}</h1></header><div class="reading-content">${s.elements.map(readingElementMarkup).join('')}</div></article>`).join('')}</div>`;
+ footer.hidden=true;if(counter)counter.textContent='';hydrateLocalVideos(dialog).catch(()=>{});
 }
 function setupRuntimeVideos(p,s,dialog,runtime){
  $$('.runtime-video',dialog).forEach(wrap=>{
@@ -355,7 +382,10 @@ function setupRuntimeSupport(p,s,dialog){
  });
 }
 function renderRuntime(p,dialog){
- const runtime=$('.learn-runtime',dialog),stage=$('#learnRuntimeStage',dialog),id=runtime.dataset.current,s=p.slides.find(x=>x.id===id)||p.slides[0],index=p.slides.findIndex(x=>x.id===s.id);
+ const runtime=$('.learn-runtime',dialog),stage=$('#learnRuntimeStage',dialog),mode=runtime?.dataset.mode||'screen';
+ if(mode!=='screen'){renderReadingRuntime(p,dialog,mode);return}
+ runtime.className='learn-runtime mode-screen';const footer=$('footer',runtime);if(footer)footer.hidden=false;
+ const id=runtime.dataset.current,s=p.slides.find(x=>x.id===id)||p.slides[0],index=p.slides.findIndex(x=>x.id===s.id);
  stage.innerHTML=`<h3>${esc(s.title)}</h3>`+s.elements.map(e=>{
   if(e.type==='heading')return `<h2>${esc(e.text)}</h2>`;
   if(e.type==='text')return `<p>${esc(e.text).replace(/\n/g,'<br>')}</p>`;
@@ -376,7 +406,10 @@ function renderRuntime(p,dialog){
  hydrateLocalVideos(dialog).catch(()=>{});
 }
 function previewProject(id){
- const p=state.projects.find(x=>x.id===id);if(!p)return;let dlg=$('#learnPreviewDialog',root);if(!dlg){alert('Abra o recurso para visualizar.');return}$('#learnPreviewBody',dlg).innerHTML=previewMarkup(p);dlg.showModal();renderRuntime(p,dlg);
+ const p=state.projects.find(x=>x.id===id);if(!p)return;const dlg=$('#learnPreviewDialog',root);if(!dlg){alert('Abra o recurso para visualizar.');return}
+ $('#learnPreviewBody',dlg).innerHTML=previewMarkup(p);dlg.showModal();renderRuntime(p,dlg);
+ $$('[data-preview-device]',dlg).forEach(b=>b.onclick=()=>{previewDevice=b.dataset.previewDevice;const frame=$('.preview-device',dlg);frame.className='preview-device preview-'+previewDevice;$$('[data-preview-device]',dlg).forEach(x=>x.classList.toggle('active',x.dataset.previewDevice===previewDevice))});
+ $$('[data-preview-mode]',dlg).forEach(b=>b.onclick=()=>{previewMode=b.dataset.previewMode;const runtime=$('.learn-runtime',dlg);runtime.dataset.mode=previewMode;$$('[data-preview-mode]',dlg).forEach(x=>x.classList.toggle('active',x.dataset.previewMode===previewMode));renderRuntime(p,dlg)});
 }
 function exportedHtml(p){
  const data=JSON.stringify(p).replace(/</g,'\\u003c');
