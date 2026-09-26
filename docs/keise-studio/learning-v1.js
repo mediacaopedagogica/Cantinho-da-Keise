@@ -158,13 +158,33 @@ function editor(){
  </section>`;
 }
 function toolbox(){
- return `<div class="learn-toolbox">
-  <button data-add-block="heading"><span>🔠</span><b>Título</b><small>Destaque principal</small></button>
-  <button data-add-block="text"><span>📝</span><b>Texto</b><small>Conteúdo e explicação</small></button>
-  <button data-add-block="video"><span>🎬</span><b>Vídeo</b><small>Player HTML5</small></button>
-  <button data-add-block="quiz"><span>❓</span><b>Múltipla escolha</b><small>Questão com feedback</small></button>
-  <button data-add-block="reflection"><span>💭</span><b>Reflexão</b><small>Pergunta aberta</small></button>
-  <button data-add-block="button"><span>🔘</span><b>Botão</b><small>Navegação entre telas</small></button>
+ return `<div class="learn-toolbox advanced">
+  <section class="tool-group"><h4>🧱 Conteúdo</h4><div>
+   <button data-add-block="heading"><span>🔠</span><b>Título</b><small>Destaque principal</small></button>
+   <button data-add-block="text"><span>📝</span><b>Texto</b><small>Conteúdo e explicação</small></button>
+   <button data-add-block="image"><span>🖼️</span><b>Imagem</b><small>Com texto alternativo</small></button>
+   <button data-add-block="video"><span>🎬</span><b>Vídeo / Live</b><small>Upload, gravação, link ou embed</small></button>
+   <button data-add-block="button"><span>🔘</span><b>Botão</b><small>Navegação entre telas</small></button>
+  </div></section>
+  <section class="tool-group"><h4>✨ Interação</h4><div>
+   <button data-add-block="quiz"><span>❓</span><b>Múltipla escolha</b><small>Questão com feedback</small></button>
+   <button data-add-block="reflection"><span>💭</span><b>Reflexão</b><small>Pergunta aberta</small></button>
+   <button data-add-block="popup"><span>🪟</span><b>Caixa / Popup</b><small>Abre conteúdo sem sair da tela</small></button>
+   <button data-add-block="tabs"><span>🗂️</span><b>Abas</b><small>Conteúdo organizado</small></button>
+  </div></section>
+  <section class="tool-group"><h4>🌐 Imersão</h4><div>
+   <button data-add-block="hotspot"><span>✨</span><b>Imagem interativa</b><small>Pontos brilhantes e cenas</small></button>
+   <button data-add-block="path"><span>🧭</span><b>Trilha</b><small>Etapas e percurso</small></button>
+   <button data-add-block="meeting"><span>🔴</span><b>Encontro ao vivo</b><small>Meet, Teams ou outro</small></button>
+  </div></section>
+  <section class="tool-group"><h4>🎮 Jogos</h4><div>
+   <button data-add-block="escape"><span>🔐</span><b>Escape room</b><small>Desafio com senha/resposta</small></button>
+   <button data-add-block="bingo"><span>🎯</span><b>Bingo</b><small>Cartela interativa</small></button>
+   <button data-add-block="raffle"><span>🎲</span><b>Sorteio</b><small>Roleta de opções</small></button>
+  </div></section>
+  <section class="tool-group"><h4>🎉 Efeitos</h4><div>
+   <button data-add-block="effect"><span>🎊</span><b>Botão de efeito</b><small>Confete, aplausos, presente...</small></button>
+  </div></section>
  </div>`;
 }
 function properties(e,p){
