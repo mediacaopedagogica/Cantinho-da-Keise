@@ -57,7 +57,29 @@ function library(){
  <div class="learn-section-head"><div><h2>Meus recursos Learning</h2><p>Salvos localmente neste navegador.</p></div><span class="learn-note">v1 · editor por blocos</span></div>
  ${state.projects.length?'<div class="learn-project-grid">'+state.projects.map(p=>`<article class="learn-project-card"><div class="learn-project-icon">📖</div><h3>${esc(p.title)}</h3><p>${esc(p.context||'Sem disciplina/contexto informado')}</p><div class="learn-project-meta"><span>${p.slides.length} tela(s)</span><span>Atualizado ${fmt(p.updatedAt||p.createdAt)}</span></div><div class="learn-card-actions"><button class="soft" data-learn-open="${p.id}">Editar</button><button class="tiny" data-learn-preview="${p.id}">Visualizar</button></div></article>`).join('')+'</div>':empty('🪄','Nenhum recurso criado','Crie o primeiro recurso Learning para começar a montar telas e interações.')}
  <dialog class="dialog" id="learnCreateDialog"><button class="dialog-close" type="button" data-learn-close>×</button><div class="dialog-icon">📚</div><h2>Novo recurso Learning</h2><form id="learnCreateForm"><label>Título<input id="learnTitle" required maxlength="100" placeholder="Ex.: Economia circular — atividade interativa"></label><label>Disciplina/contexto<input id="learnContext" maxlength="120" placeholder="Ex.: Design e Sustentabilidade"></label><div class="dialog-actions"><button class="soft" type="button" data-learn-close>Cancelar</button><button class="primary" type="submit">Criar recurso</button></div></form></dialog>
- <dialog class="dialog wide learn-preview-dialog" id="learnPreviewDialog"><button class="dialog-close" type="button" data-learn-close>×</button><div id="learnPreviewBody"></div></dialog>`;
+ <dialog class="dialog wide learn-preview-dialog" id="learnPreviewDialog"><button class="dialog-close" type="button" data-learn-close>×</button><div id="learnPreviewBody"></div></dialog>
+  <dialog class="dialog learn-support-settings-dialog" id="learnSupportSettingsDialog">
+   <button class="dialog-close" type="button" data-learn-close>×</button>
+   <div class="dialog-icon">💜</div><h2>Apoios e Mediação</h2>
+   <p>Defina como dúvidas e comentários podem chegar à mediação. Sem conector, eles ficam claramente salvos como rascunho local no dispositivo do aluno.</p>
+   <form id="learnSupportSettingsForm">
+    <label>Endpoint do conector <span class="field-help">opcional</span><input id="learnSupportEndpoint" type="url" value="${esc(ensureProjectSupport(p).endpoint||'')}" placeholder="https://seu-conector/..."></label>
+    <p class="support-security-note">🔐 Não coloque chave de API ou senha neste campo. O HTML do aluno é público; use apenas um endpoint seguro do seu conector/servidor.</p>
+    <label>Privacidade padrão<select id="learnSupportPrivacy"><option value="private" ${ensureProjectSupport(p).defaultPrivacy!=='class'?'selected':''}>Privado para a mediação</option><option value="class" ${ensureProjectSupport(p).defaultPrivacy==='class'?'selected':''}>Pode integrar discussão da turma</option></select></label>
+    <div class="dialog-actions"><button class="soft" type="button" data-learn-close>Cancelar</button><button class="primary" type="submit">Salvar configuração</button></div>
+   </form>
+  </dialog>
+  <dialog class="dialog wide learn-code-dialog" id="learnCodeDialog">
+   <button class="dialog-close" type="button" data-learn-close>×</button>
+   <div class="dialog-icon">&lt;/&gt;</div><h2>Código e incorporação</h2>
+   <p>O Studio continua visual, mas o código nunca fica escondido de você.</p>
+   <div class="code-tabs">
+    <label>HTML completo<textarea id="learnSourceCode" readonly spellcheck="false"></textarea></label>
+    <div class="code-actions"><button class="soft" type="button" id="learnCopySource">Copiar HTML</button></div>
+    <label>Código para incorporar depois de publicar<textarea id="learnIframeCode" readonly spellcheck="false"></textarea></label>
+    <div class="code-actions"><button class="soft" type="button" id="learnCopyIframe">Copiar iframe</button></div>
+   </div>
+  </dialog>`;
 }
 function empty(icon,title,text){return `<div class="learn-empty"><div><span>${icon}</span><b>${title}</b><p>${text}</p></div></div>`}
 
@@ -83,7 +105,7 @@ function editor(){
   <header class="learn-editor-top">
    <button class="soft" id="learnBack">← Projetos</button>
    <div><small>Keise Learning</small><h2>${esc(p.title)}</h2><p>${esc(p.context||'Sem contexto informado')}</p></div>
-   <div class="learn-editor-actions"><span class="learn-save-state">● salvo localmente</span><button class="soft" id="learnPreview">▶ Visualizar</button><button class="primary" id="learnExport">Exportar HTML</button></div>
+   <div class="learn-editor-actions"><span class="learn-save-state">● salvo localmente</span><button class="soft" id="learnSupportSettingsBtn">💜 Apoios</button><button class="soft" id="learnCodeBtn">&lt;/&gt; Código</button><button class="soft" id="learnPreview">▶ Visualizar</button><button class="primary" id="learnExport">Exportar HTML</button></div>
   </header>
   <div class="learn-workspace">
    <aside class="learn-slides">
@@ -183,6 +205,11 @@ function bindEditor(){
  bindProperties();
  $('#learnPreview',root).onclick=()=>previewProject(p.id);
  $('#learnExport',root).onclick=()=>exportProject(p);
+ $('#learnSupportSettingsBtn',root).onclick=()=>$('#learnSupportSettingsDialog',root).showModal();
+ $('#learnSupportSettingsForm',root).onsubmit=ev=>{ev.preventDefault();const cfg=ensureProjectSupport(p);cfg.endpoint=$('#learnSupportEndpoint',root).value.trim();cfg.defaultPrivacy=$('#learnSupportPrivacy',root).value;touch();$('#learnSupportSettingsDialog',root).close();toast('Apoios e mediação atualizados.')};
+ $('#learnCodeBtn',root).onclick=()=>{const source=exportedHtml(p),iframe='<iframe src="COLE_A_URL_PUBLICADA_AQUI" title="'+p.title.replace(/"/g,'&quot;')+'" width="100%" height="720" style="border:0" allowfullscreen></iframe>';$('#learnSourceCode',root).value=source;$('#learnIframeCode',root).value=iframe;$('#learnCodeDialog',root).showModal()};
+ $('#learnCopySource',root).onclick=async()=>{await navigator.clipboard.writeText($('#learnSourceCode',root).value);toast('HTML copiado.')};
+ $('#learnCopyIframe',root).onclick=async()=>{await navigator.clipboard.writeText($('#learnIframeCode',root).value);toast('Código de incorporação copiado.')};
  $$('[data-learn-close]',root).forEach(b=>b.onclick=()=>b.closest('dialog').close());
 }
 function bindProperties(){
@@ -191,17 +218,25 @@ function bindProperties(){
  bind('#propText','text');bind('#propVideoTitle','title');bind('#propVideoSrc','src');bind('#propButtonLabel','label');bind('#propReflection','prompt');bind('#propReflectionPlaceholder','placeholder');bind('#propQuizQuestion','question');bind('#propQuizRight','feedbackRight');bind('#propQuizWrong','feedbackWrong');
  const target=$('#propButtonTarget',root);if(target)target.onchange=ev=>{e.targetSlideId=ev.target.value;touch();renderCanvasLight()};
  const correct=$('#propQuizCorrect',root);if(correct)correct.onchange=ev=>{e.correct=Number(ev.target.value);touch();renderCanvasLight()};
- $('[data-quiz-option]',root).forEach(n=>n.oninput=ev=>{e.options[Number(n.dataset.quizOption)]=ev.target.value;touch();renderCanvasLight()});
+ $$('[data-quiz-option]',root).forEach(n=>n.oninput=ev=>{e.options[Number(n.dataset.quizOption)]=ev.target.value;touch();renderCanvasLight()});
  if(e.type==='video'){
   e.checkpoints??=[];
+  const support=ensureVideoSupport(e),sourceMode=$('#propVideoSourceMode',root);
+  if(sourceMode)sourceMode.onchange=ev=>{e.sourceMode=ev.target.value;touch();render()};
+  const embed=$('#propVideoEmbed',root);if(embed)embed.oninput=ev=>{e.embedCode=ev.target.value;e.embedSrc=extractIframeSrc(ev.target.value);touch();const detected=$('#propVideoEmbedSrc',root);if(detected)detected.value=e.embedSrc||'';renderCanvasLight()};
+  const supportBinds=[
+   ['#supportEnabled','enabled','checked'],['#supportPause','pauseOnOpen','checked'],['#supportQuestion','allowQuestion','checked'],['#supportSignals','allowSignals','checked'],['#supportComments','allowComments','checked'],['#supportMaterial','allowMaterial','checked'],
+   ['#supportStart','start','number'],['#supportEnd','end','number'],['#supportMaterialLabel','materialLabel','value'],['#supportMaterialUrl','materialUrl','value']
+  ];
+  supportBinds.forEach(([sel,key,type])=>{const n=$(sel,root);if(!n)return;const apply=()=>{support[key]=type==='checked'?n.checked:type==='number'?Number(n.value||0):n.value;touch();renderCanvasLight()};n.oninput=apply;n.onchange=apply});
   const add=$('#propAddCheckpoint',root);
   if(add)add.onclick=()=>{e.checkpoints.push({id:uid('cp'),at:30,question:'Qual alternativa explica melhor o trecho que você acabou de assistir?',options:['Alternativa A','Alternativa B','Alternativa C','Alternativa D'],correct:0,feedbackRight:'Muito bem!',feedbackWrong:'Revise este trecho e tente novamente.',correctTargetSlideId:'',wrongTargetSlideId:''});touch();render()};
-  $('[data-cp-delete]',root).forEach(n=>n.onclick=()=>{e.checkpoints=e.checkpoints.filter(cp=>cp.id!==n.dataset.cpDelete);touch();render()});
-  $('[data-cp-field]',root).forEach(n=>{
+  $$('[data-cp-delete]',root).forEach(n=>n.onclick=()=>{e.checkpoints=e.checkpoints.filter(cp=>cp.id!==n.dataset.cpDelete);touch();render()});
+  $$('[data-cp-field]',root).forEach(n=>{
    const apply=()=>{const cp=e.checkpoints.find(x=>x.id===n.dataset.cpId);if(!cp)return;const key=n.dataset.cpField;cp[key]=key==='at'||key==='correct'?Number(n.value):n.value;touch();renderCanvasLight()};
    n.oninput=apply;n.onchange=apply;
   });
-  $('[data-cp-option]',root).forEach(n=>n.oninput=()=>{const cp=e.checkpoints.find(x=>x.id===n.dataset.cpId);if(!cp)return;cp.options[Number(n.dataset.cpOption)]=n.value;touch();});
+  $$('[data-cp-option]',root).forEach(n=>n.oninput=()=>{const cp=e.checkpoints.find(x=>x.id===n.dataset.cpId);if(!cp)return;cp.options[Number(n.dataset.cpOption)]=n.value;touch()});
  }
 }
 function renderCanvasLight(){
