@@ -274,12 +274,57 @@ function setupRuntimeVideos(p,s,dialog,runtime){
   });
  });
 }
+function runtimeSupportMarkup(e){
+ const s=ensureVideoSupport(e);if(!s.enabled)return'';
+ const actions=[];
+ if(s.allowQuestion)actions.push('<button type="button" data-support-action="question">💬 Tirar dúvida neste ponto</button>');
+ if(s.allowMaterial&&s.materialUrl)actions.push('<button type="button" data-support-action="material">🔎 '+esc(s.materialLabel||'Acessar material agora')+'</button>');
+ if(s.allowComments)actions.push('<button type="button" data-support-action="comment">💭 Comentar neste trecho</button>');
+ if(s.allowSignals){
+  actions.push('<button type="button" data-support-signal="understood">😊 Entendi</button>');
+  actions.push('<button type="button" data-support-signal="doubt">🤔 Tenho dúvida</button>');
+  actions.push('<button type="button" data-support-signal="lost">🧭 Me perdi</button>');
+  actions.push('<button type="button" data-support-signal="deepen">🚀 Quero aprofundar</button>');
+ }
+ if(!actions.length)return'';
+ return `<div class="runtime-support" data-support-start="${Number(s.start)||0}" data-support-end="${Number(s.end)||0}"><div class="runtime-support-bar">${actions.join('')}</div><div class="runtime-support-drawer" hidden></div></div>`;
+}
+function supportTimestamp(wrap){
+ const video=$('video',wrap);return video&&Number.isFinite(video.currentTime)?Math.round(video.currentTime*10)/10:null;
+}
+function supportPayload(p,s,e,wrap,kind,message=''){
+ return{id:uid('support'),schema:'keise-learning/support-v1',projectId:p.id,projectTitle:p.title,context:p.context||'',slideId:s.id,slideTitle:s.title||'',videoId:e.id,videoTitle:e.title||'',timestamp:supportTimestamp(wrap),kind,message,privacy:ensureProjectSupport(p).defaultPrivacy||'private',createdAt:new Date().toISOString()};
+}
+function openRuntimeSupportDrawer(p,s,e,wrap,kind){
+ const cfg=ensureVideoSupport(e),drawer=$('.runtime-support-drawer',wrap),video=$('video',wrap);
+ if(!drawer)return;if(video&&cfg.pauseOnOpen)video.pause();drawer.hidden=false;
+ if(kind==='material'){
+  const url=cfg.materialUrl||'';
+  drawer.innerHTML=`<div class="support-drawer-card"><div class="support-drawer-head"><b>🔎 ${esc(cfg.materialLabel||'Material de apoio')}</b><button type="button" data-support-close>×</button></div><iframe class="support-material-frame" src="${esc(url)}" title="${esc(cfg.materialLabel||'Material de apoio')}"></iframe><p class="support-fallback">Se o material não abrir aqui, <a href="${esc(url)}" target="_blank" rel="noopener">abrir em nova guia ↗</a>.</p></div>`;
+ }else{
+  const label=kind==='comment'?'💭 Comentário neste trecho':'💬 Dúvida no Ponto';
+  const placeholder=kind==='comment'?'Compartilhe um comentário sobre este trecho...':'Escreva o que não ficou claro ou o que você quer aprofundar...';
+  drawer.innerHTML=`<div class="support-drawer-card"><div class="support-drawer-head"><b>${label}</b><button type="button" data-support-close>×</button></div><div class="support-context"><span>📍 ${esc(s.title||'Tela')}</span><span>${supportTimestamp(wrap)!=null?'⏱ '+supportTimestamp(wrap)+'s':'⏱ ponto do vídeo incorporado'}</span></div><textarea class="support-message" placeholder="${placeholder}"></textarea><button class="primary support-send" type="button">Enviar</button><p class="support-send-status" role="status"></p></div>`;
+  const send=$('.support-send',drawer);if(send)send.onclick=async()=>{const msg=$('.support-message',drawer).value.trim(),status=$('.support-send-status',drawer);if(!msg){status.textContent='Escreva uma mensagem antes de enviar.';return}send.disabled=true;status.textContent='Enviando...';const result=await sendSupportPayload(p,supportPayload(p,s,e,wrap,kind,msg));status.textContent=result.sent?'Enviado para a mediação.':'Rascunho salvo neste dispositivo. Configure um conector para envio entre dispositivos.';send.disabled=false};
+ }
+ $('[data-support-close]',drawer)?.addEventListener('click',()=>{drawer.hidden=true;drawer.innerHTML='';});
+}
+function setupRuntimeSupport(p,s,dialog){
+ $('.runtime-video',dialog).forEach(wrap=>{
+  const e=s.elements.find(x=>x.id===wrap.dataset.videoId);if(!e)return;
+  const cfg=ensureVideoSupport(e),support=$('.runtime-support',wrap),video=$('video',wrap);if(!support)return;
+  const updateVisibility=()=>{if(!video){support.hidden=false;return}const t=video.currentTime||0,start=Number(cfg.start)||0,end=Number(cfg.end)||0;support.hidden=t<start||(end>0&&t>end)};
+  updateVisibility();if(video)video.addEventListener('timeupdate',updateVisibility);
+  $('[data-support-action]',support).forEach(b=>b.onclick=()=>openRuntimeSupportDrawer(p,s,e,wrap,b.dataset.supportAction));
+  $('[data-support-signal]',support).forEach(b=>b.onclick=async()=>{const result=await sendSupportPayload(p,supportPayload(p,s,e,wrap,'signal',b.dataset.supportSignal));b.classList.add('sent');const old=b.textContent;b.textContent=result.sent?'✓ Enviado':'✓ Registrado';setTimeout(()=>{b.textContent=old;b.classList.remove('sent')},1800)});
+ });
+}
 function renderRuntime(p,dialog){
  const runtime=$('.learn-runtime',dialog),stage=$('#learnRuntimeStage',dialog),id=runtime.dataset.current,s=p.slides.find(x=>x.id===id)||p.slides[0],index=p.slides.findIndex(x=>x.id===s.id);
  stage.innerHTML=`<h3>${esc(s.title)}</h3>`+s.elements.map(e=>{
   if(e.type==='heading')return `<h2>${esc(e.text)}</h2>`;
   if(e.type==='text')return `<p>${esc(e.text).replace(/\n/g,'<br>')}</p>`;
-  if(e.type==='video')return e.src?`<div class="runtime-video" data-video-id="${esc(e.id)}"><b>${esc(e.title||'Vídeo')}</b><video controls preload="metadata" src="${esc(e.src)}"></video><div class="runtime-checkpoint-host" hidden></div></div>`:`<div class="runtime-note">Vídeo ainda sem URL.</div>`;
+  if(e.type==='video'){const source=e.sourceMode==='embed'&&e.embedSrc?`<iframe class="runtime-video-embed" src="${esc(e.embedSrc)}" title="${esc(e.title||'Vídeo incorporado')}" allowfullscreen loading="lazy"></iframe>`:e.src?`<video controls preload="metadata" src="${esc(e.src)}"></video>`:'<div class="runtime-note">Vídeo ainda sem origem.</div>';return `<div class="runtime-video" data-video-id="${esc(e.id)}"><b>${esc(e.title||'Vídeo')}</b>${source}<div class="runtime-checkpoint-host" hidden></div>${runtimeSupportMarkup(e)}</div>`;}
   if(e.type==='reflection')return `<div class="runtime-reflection"><b>${esc(e.prompt)}</b><textarea placeholder="${esc(e.placeholder||'Escreva sua reflexão...')}"></textarea></div>`;
   if(e.type==='quiz')return `<form class="runtime-quiz" data-correct="${Number(e.correct)||0}" data-right="${esc(e.feedbackRight||'Muito bem!')}" data-wrong="${esc(e.feedbackWrong||'Tente novamente.')}"><b>${esc(e.question)}</b>${(e.options||[]).map((o,i)=>`<label><input type="radio" name="q-${esc(e.id)}" value="${i}"> ${esc(o)}</label>`).join('')}<button class="soft runtime-check" type="button">Verificar resposta</button><p class="runtime-feedback" role="status"></p></form>`;
   if(e.type==='button')return `<button class="primary runtime-jump" data-target="${esc(e.targetSlideId||'')}">${esc(e.label||'Continuar')}</button>`;
@@ -292,6 +337,7 @@ function renderRuntime(p,dialog){
  $$('.runtime-check',dialog).forEach(b=>b.onclick=()=>{const f=b.closest('.runtime-quiz'),picked=f.querySelector('input[type="radio"]:checked'),out=f.querySelector('.runtime-feedback');if(!picked){out.textContent='Escolha uma alternativa.';return}out.textContent=Number(picked.value)===Number(f.dataset.correct)?f.dataset.right:f.dataset.wrong});
  $$('.runtime-jump',dialog).forEach(b=>b.onclick=()=>{if(!b.dataset.target)return;runtime.dataset.current=b.dataset.target;renderRuntime(p,dialog)});
  setupRuntimeVideos(p,s,dialog,runtime);
+ setupRuntimeSupport(p,s,dialog);
 }
 function previewProject(id){
  const p=state.projects.find(x=>x.id===id);if(!p)return;let dlg=$('#learnPreviewDialog',root);if(!dlg){alert('Abra o recurso para visualizar.');return}$('#learnPreviewBody',dlg).innerHTML=previewMarkup(p);dlg.showModal();renderRuntime(p,dlg);
