@@ -53,7 +53,7 @@ function editor(){
     <div class="learn-slide-list">${p.slides.map((x,i)=>`<button class="${x.id===p.activeSlideId?'active':''}" data-learn-slide="${x.id}"><span>${i+1}</span><b>${esc(x.title||'Tela '+(i+1))}</b></button>`).join('')}</div>
     <button class="soft learn-add-screen" id="learnAddSlideBottom">＋ Nova tela</button>
    </aside>
-   <main class="learn-canvas-wrap">
+   <section class="learn-canvas-wrap">
     <div class="learn-canvas-head"><div><span>Tela atual</span><input id="learnSlideTitle" maxlength="80" value="${esc(s.title||'')}"></div><button class="tiny danger-text" id="learnDeleteSlide" ${p.slides.length===1?'disabled':''}>Excluir tela</button></div>
     <div class="learn-canvas">
      <div class="learn-slide-stage">
