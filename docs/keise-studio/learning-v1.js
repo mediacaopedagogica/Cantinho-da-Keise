@@ -16,6 +16,44 @@ function element(){return slide()?.elements.find(e=>e.id===selectedElementId)||n
 function touch(){const p=project();if(p)p.updatedAt=new Date().toISOString();save()}
 function fmt(v){return new Intl.DateTimeFormat('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(v))}
 function splitLines(v){return String(v||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean)}
+function parseLinkedItems(v){
+ return splitLines(v).map(line=>{const parts=line.split('|').map(x=>x.trim());return{label:parts[0]||'',url:parts[1]||'',note:parts[2]||''}}).filter(x=>x.label);
+}
+function shuffleCopy(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function bingoPool(e){
+ if(e.bingoMode==='numbers'){const from=Number(e.numberFrom)||1,to=Number(e.numberTo)||75;return Array.from({length:Math.max(0,to-from+1)},(_,i)=>String(from+i))}
+ if(e.bingoMode==='letters')return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+ return splitLines(e.itemsText);
+}
+function generateBingoCards(e,count){
+ const size=Number(e.grid)||5,total=size*size,pool=bingoPool(e),cards=[];
+ const wanted=Math.max(1,Math.min(50,Number(count||e.cardCount||6)));
+ for(let n=0;n<wanted;n++){
+  let values=shuffleCopy(pool).slice(0,total);
+  while(values.length<total)values.push('—');
+  if(e.freeCenter&&total%2===1)values[Math.floor(total/2)]='LIVRE';
+  cards.push({id:uid('card'),values});
+ }
+ e.cards=cards;e.cardCount=wanted;return cards;
+}
+function wheelPalette(theme){
+ const palettes={
+  pastel:['#f7a9c4','#a8b9ff','#8ed8c1','#ffd98b','#c7a9ee','#ffb7a1','#9fd7ef','#e8b6df'],
+  neon:['#ff4fa3','#6d5cff','#00d4aa','#ffcc00','#00a8ff','#ff6b35','#a855f7','#22c55e'],
+  academic:['#374a7a','#6e83b5','#c28a62','#7f9b87','#9a789b','#d2ad73','#607d8b','#8b6f61'],
+  nature:['#3c8d74','#80b77b','#d0b45f','#7fa8a1','#b98261','#95c7a7','#5f7d50','#c7a86b']
+ };
+ return palettes[theme]||palettes.pastel;
+}
+function wheelBackground(e){
+ const items=parseLinkedItems(e.itemsText),colors=wheelPalette(e.wheelTheme),n=Math.max(1,items.length),stops=[];
+ for(let i=0;i<n;i++){const a=(i/n)*360,b=((i+1)/n)*360;stops.push(`${colors[i%colors.length]} ${a}deg ${b}deg`)}
+ return `conic-gradient(${stops.join(',')})`;
+}
+function phoneMediaMarkup(e){
+ const src=e.assetId?`<img data-learn-local-asset="${esc(e.assetId)}" alt="">`:e.imageUrl?`<img src="${esc(e.imageUrl)}" alt="">`:'<div class="phone-media-placeholder">Adicionar mídia</div>';
+ return src;
+}
 function hotspotMarkerHtml(h,i,mode='editor'){
  const type=h.markerType||'emoji',value=h.markerValue||'🔎',style=h.markerStyle||'glow',size=Math.max(22,Math.min(88,Number(h.markerSize)||40));
  const cls=`hot-marker type-${type} style-${style}`;
@@ -170,8 +208,10 @@ function elementMarkup(e,p){
  if(e.type==='path')return `<div class="learn-render path-preview">${splitLines(e.stepsText).map((x,i)=>`<div><span>${i+1}</span><b>${esc(x)}</b></div>`).join('')}</div>`;
  if(e.type==='meeting')return `<div class="learn-render meeting-preview"><span>🔴</span><div><b>${esc(e.title||'Encontro ao vivo')}</b><p>${esc(e.provider||'Outro')} · abre em janela separada</p></div></div>`;
  if(e.type==='escape')return `<div class="learn-render escape-preview"><span>🔐</span><div><b>Escape room</b><p>${esc(e.prompt||'Resolva o desafio.')}</p></div></div>`;
- if(e.type==='bingo')return `<div class="learn-render bingo-preview">${splitLines(e.itemsText).slice(0,9).map(x=>`<span>${esc(x)}</span>`).join('')}</div>`;
- if(e.type==='raffle')return `<div class="learn-render raffle-preview"><span>🎲</span><div><b>Sorteio</b><p>${splitLines(e.itemsText).length} opção(ões)</p></div></div>`;
+ if(e.type==='bingo'){const size=Number(e.grid)||5,cards=e.cards?.length?e.cards:generateBingoCards(e,1),vals=cards[0]?.values||[];return `<div class="bingo-card-preview theme-${esc(e.bingoTheme||'classic')}"><header><b>BINGO</b><small>${esc(e.title||'Bingo da aula')}</small></header><div class="bingo-card-grid" style="--grid:${size}">${vals.map((x,i)=>`<span class="${x==='LIVRE'?'free':''}">${esc(x)}</span>`).join('')}</div><footer>${e.cards?.length||1} cartela(s) gerada(s)</footer></div>`;}
+ if(e.type==='raffle'){const items=parseLinkedItems(e.itemsText);return `<div class="wheel-preview theme-${esc(e.wheelTheme||'pastel')}"><div class="wheel-disc" style="background:${wheelBackground(e)}"><span class="wheel-center">${esc(e.centerLabel||'GIRAR')}</span></div><div><b>${esc(e.title||'Roleta')}</b><p>${items.length} opção(ões) · links opcionais</p></div></div>`;}
+ if(e.type==='fortune')return `<div class="fortune-preview theme-${esc(e.cookieTheme||'golden')}"><div class="fortune-cookie-css"><i></i><i></i><b></b></div><div><b>${esc(e.title||'Biscoito da Sorte')}</b><p>${parseLinkedItems(e.messagesText).length} mensagem(ns) escondida(s)</p></div></div>`;
+ if(e.type==='phone')return `<div class="phone-preview-card"><div class="phone-shell miniature template-${esc(e.template||'professional')}"><div class="phone-notch"></div><div class="phone-screen">${e.template==='professional'?`<div class="phone-prof-banner"></div><div class="phone-profile-head"><div class="phone-avatar">${esc((e.name||'P').slice(0,1))}</div><b>${esc(e.name||'Nome')}</b><span>${esc(e.headline||'Título profissional')}</span></div><div class="phone-section">${esc(e.bio||'Resumo profissional')}</div>`:e.template==='vertical'?`<div class="phone-vertical-media">${phoneMediaMarkup(e)}<div class="phone-vertical-caption">@${esc(e.handle||'perfil')} · ${esc(e.postText||'Conteúdo pedagógico')}</div></div>`:`<div class="phone-feed-top">${esc(e.appTitle||'Feed')}</div>${phoneMediaMarkup(e)}<div class="phone-feed-copy"><b>@${esc(e.handle||'perfil')}</b> ${esc(e.postText||'Publicação de exemplo')}</div>`}</div></div><div><b>Simulador de celular</b><p>${esc(e.template||'professional')}</p></div></div>`;
  if(e.type==='effect')return `<div class="learn-render effect-preview"><button disabled>✨ ${esc(e.label||'Comemorar')}</button><small>${esc(e.effect||'confetti')}</small></div>`;
  if(e.type==='emoji')return `<div class="learn-emoji-preview anim-${esc(e.animation||'none')}" style="font-size:${Number(e.size)||72}px" role="img" aria-label="${esc(e.label||e.emoji||'emoji')}">${esc(e.emoji||'✨')}</div>`;
  return '';
@@ -312,10 +352,14 @@ function toolbox(){
    <button data-add-block="path"><span>🧭</span><b>Trilha</b><small>Etapas e percurso</small></button>
    <button data-add-block="meeting"><span>🔴</span><b>Encontro ao vivo</b><small>Meet, Teams ou outro</small></button>
   </div></section>
-  <section class="tool-group"><h4>🎮 Jogos</h4><div>
+  <section class="tool-group"><h4>🎮 Jogos e sorteios</h4><div>
    <button data-add-block="escape"><span>🔐</span><b>Escape room</b><small>Desafio com senha/resposta</small></button>
-   <button data-add-block="bingo"><span>🎯</span><b>Bingo</b><small>Cartela interativa</small></button>
-   <button data-add-block="raffle"><span>🎲</span><b>Sorteio</b><small>Roleta de opções</small></button>
+   <button data-add-block="bingo"><span>🎯</span><b>Bingo Studio</b><small>Números, letras, nomes e conceitos</small></button>
+   <button data-add-block="raffle"><span>🎡</span><b>Roleta</b><small>Visual giratório + links</small></button>
+   <button data-add-block="fortune"><span>🥠</span><b>Biscoito da Sorte</b><small>Mensagem revelada com imersão</small></button>
+  </div></section>
+  <section class="tool-group"><h4>📱 Simuladores pedagógicos</h4><div>
+   <button data-add-block="phone"><span>📱</span><b>Tela de celular</b><small>Perfil, feed, vídeo vertical e portfólio</small></button>
   </div></section>
   <section class="tool-group"><h4>🎉 Efeitos</h4><div>
    <button data-add-block="effect"><span>🎊</span><b>Botão de efeito</b><small>Confete, aplausos, presente...</small></button>
@@ -360,8 +404,10 @@ function properties(e,p){
  if(e.type==='path')return `<div class="learn-props"><label>Título<input id="propPathTitle" value="${esc(e.title||'')}"></label><label>Etapas <span class="field-help">uma por linha</span><textarea id="propPathSteps" rows="10">${esc(e.stepsText||'')}</textarea></label></div>`;
  if(e.type==='meeting')return `<div class="learn-props"><label>Título<input id="propMeetingTitle" value="${esc(e.title||'')}"></label><label>Plataforma<select id="propMeetingProvider"><option ${e.provider==='Google Meet'?'selected':''}>Google Meet</option><option ${e.provider==='Microsoft Teams'?'selected':''}>Microsoft Teams</option><option ${e.provider==='Zoom'?'selected':''}>Zoom</option><option ${e.provider==='Outro'?'selected':''}>Outro</option></select></label><label>Link da reunião<input id="propMeetingUrl" value="${esc(e.url||'')}" placeholder="https://..."></label><label>Orientação<textarea id="propMeetingNote">${esc(e.note||'')}</textarea></label><p class="learn-prop-note">O encontro abre em outra janela para evitar bloqueios de segurança do Meet/Teams. O Keise Studio pode permanecer aberto ao lado com dúvidas e Live Assist.</p></div>`;
  if(e.type==='escape')return `<div class="learn-props"><label>Desafio<textarea id="propEscapePrompt">${esc(e.prompt||'')}</textarea></label><label>Resposta correta<input id="propEscapeAnswer" value="${esc(e.answer||'')}"></label><label>Dica<input id="propEscapeHint" value="${esc(e.hint||'')}"></label><label>Mensagem ao concluir<input id="propEscapeSuccess" value="${esc(e.success||'')}"></label><label>Ir para<select id="propEscapeTarget"><option value="">Continuar nesta tela</option>${p.slides.map(s=>`<option value="${s.id}" ${e.targetSlideId===s.id?'selected':''}>${esc(s.title)}</option>`).join('')}</select></label><label>Efeito<select id="propEscapeEffect">${['confetti','applause','gift','stars','balloons'].map(x=>`<option value="${x}" ${e.effect===x?'selected':''}>${x}</option>`).join('')}</select></label></div>`;
- if(e.type==='bingo')return `<div class="learn-props"><label>Título<input id="propBingoTitle" value="${esc(e.title||'')}"></label><label>Itens <span class="field-help">um por linha</span><textarea id="propBingoItems" rows="12">${esc(e.itemsText||'')}</textarea></label><label>Tamanho<select id="propBingoGrid"><option value="3" ${Number(e.grid)===3?'selected':''}>3 × 3</option><option value="4" ${Number(e.grid)===4?'selected':''}>4 × 4</option></select></label></div>`;
- if(e.type==='raffle')return `<div class="learn-props"><label>Título<input id="propRaffleTitle" value="${esc(e.title||'')}"></label><label>Opções <span class="field-help">uma por linha</span><textarea id="propRaffleItems" rows="12">${esc(e.itemsText||'')}</textarea></label></div>`;
+ if(e.type==='bingo')return `<div class="learn-props"><label>Título<input id="propBingoTitle" value="${esc(e.title||'')}"></label><label>Tipo de conteúdo<select id="propBingoMode"><option value="numbers" ${e.bingoMode==='numbers'?'selected':''}>Números</option><option value="letters" ${e.bingoMode==='letters'?'selected':''}>Letras</option><option value="names" ${e.bingoMode==='names'?'selected':''}>Nomes</option><option value="concepts" ${!e.bingoMode||e.bingoMode==='concepts'?'selected':''}>Conceitos / palavras</option><option value="custom" ${e.bingoMode==='custom'?'selected':''}>Lista personalizada</option></select></label>${e.bingoMode==='numbers'?`<div class="support-time-grid"><label>De<input id="propBingoFrom" type="number" value="${Number(e.numberFrom)||1}"></label><label>Até<input id="propBingoTo" type="number" value="${Number(e.numberTo)||75}"></label></div>`:`<label>Itens <span class="field-help">um por linha</span><textarea id="propBingoItems" rows="11">${esc(e.itemsText||'')}</textarea></label>`}<div class="support-time-grid"><label>Cartela<select id="propBingoGrid"><option value="3" ${Number(e.grid)===3?'selected':''}>3 × 3</option><option value="4" ${Number(e.grid)===4?'selected':''}>4 × 4</option><option value="5" ${Number(e.grid||5)===5?'selected':''}>5 × 5</option></select></label><label>Quantidade de cartelas<input id="propBingoCardCount" type="number" min="1" max="50" value="${Number(e.cardCount)||6}"></label></div><label>Tema<select id="propBingoTheme"><option value="classic" ${!e.bingoTheme||e.bingoTheme==='classic'?'selected':''}>Clássico</option><option value="pastel" ${e.bingoTheme==='pastel'?'selected':''}>Pastel</option><option value="dark" ${e.bingoTheme==='dark'?'selected':''}>Escuro</option><option value="school" ${e.bingoTheme==='school'?'selected':''}>Escolar</option></select></label><label class="support-check"><input id="propBingoFree" type="checkbox" ${e.freeCenter?'checked':''}> Casa central LIVRE</label><button class="primary" id="propGenerateBingoCards" type="button">🎯 Gerar cartelas</button><p class="learn-prop-note">${e.cards?.length||0} cartela(s) armazenada(s) neste objeto.</p></div>`;
+ if(e.type==='raffle')return `<div class="learn-props"><label>Título<input id="propRaffleTitle" value="${esc(e.title||'')}"></label><label>Opções <span class="field-help">uma por linha: Nome | link opcional | observação</span><textarea id="propRaffleItems" rows="12">${esc(e.itemsText||'')}</textarea></label><label>Tema da roleta<select id="propWheelTheme"><option value="pastel" ${!e.wheelTheme||e.wheelTheme==='pastel'?'selected':''}>Pastel</option><option value="neon" ${e.wheelTheme==='neon'?'selected':''}>Neon</option><option value="academic" ${e.wheelTheme==='academic'?'selected':''}>Profissional</option><option value="nature" ${e.wheelTheme==='nature'?'selected':''}>Natureza</option></select></label><label>Texto do centro<input id="propWheelCenter" value="${esc(e.centerLabel||'GIRAR')}"></label><label>Duração do giro <span class="field-help">${Number(e.spinSeconds)||4}s</span><input id="propWheelSeconds" type="range" min="2" max="10" value="${Number(e.spinSeconds)||4}"></label><label class="support-check"><input id="propWheelOpenLink" type="checkbox" ${e.openLinkAfter?'checked':''}> Oferecer botão para abrir o link sorteado</label></div>`;
+ if(e.type==='fortune')return `<div class="learn-props"><label>Título<input id="propFortuneTitle" value="${esc(e.title||'')}"></label><label>Mensagens <span class="field-help">uma por linha: Mensagem | link opcional</span><textarea id="propFortuneMessages" rows="12">${esc(e.messagesText||'')}</textarea></label><label>Visual do biscoito<select id="propFortuneTheme"><option value="golden" ${!e.cookieTheme||e.cookieTheme==='golden'?'selected':''}>Tradicional dourado</option><option value="chocolate" ${e.cookieTheme==='chocolate'?'selected':''}>Chocolate</option><option value="pastel" ${e.cookieTheme==='pastel'?'selected':''}>Pastel</option></select></label><label>Como revelar<select id="propFortuneMode"><option value="random" ${!e.revealMode||e.revealMode==='random'?'selected':''}>Aleatório</option><option value="sequential" ${e.revealMode==='sequential'?'selected':''}>Na ordem</option></select></label><label class="support-check"><input id="propFortuneConfetti" type="checkbox" ${e.celebrate!==false?'checked':''}> Celebrar ao abrir</label></div>`;
+ if(e.type==='phone')return `<div class="learn-props"><label>Modelo de tela<select id="propPhoneTemplate"><option value="professional" ${!e.template||e.template==='professional'?'selected':''}>Perfil profissional</option><option value="feed" ${e.template==='feed'?'selected':''}>Feed social</option><option value="vertical" ${e.template==='vertical'?'selected':''}>Vídeo vertical</option><option value="portfolio" ${e.template==='portfolio'?'selected':''}>Portfólio</option></select></label><label>Nome<input id="propPhoneName" value="${esc(e.name||'')}"></label><label>Usuário/@<input id="propPhoneHandle" value="${esc(e.handle||'')}"></label><label>Título profissional<input id="propPhoneHeadline" value="${esc(e.headline||'')}"></label><label>Bio / resumo<textarea id="propPhoneBio">${esc(e.bio||'')}</textarea></label><label>Texto da publicação<textarea id="propPhonePost">${esc(e.postText||'')}</textarea></label><input id="propPhoneMediaFile" type="file" accept="image/*,video/*" hidden><button class="soft" id="propPhoneChooseMedia" type="button">📁 Escolher imagem/mídia</button><label>Ou URL de imagem<input id="propPhoneImageUrl" value="${esc(e.imageUrl||'')}"></label><label>Botão/ação<input id="propPhoneActionLabel" value="${esc(e.actionLabel||'Ver mais')}"></label><label>Link da ação<input id="propPhoneActionUrl" value="${esc(e.actionUrl||'')}"></label><p class="learn-prop-note">Use o simulador para atividades de carreira, comunicação, cidadania digital, análise de perfil ou produção de conteúdo.</p></div>`;
  if(e.type==='effect')return `<div class="learn-props"><label>Texto do botão<input id="propEffectLabel" value="${esc(e.label||'')}"></label><label>Efeito<select id="propEffectType">${['confetti','applause','gift','stars','balloons','boo'].map(x=>`<option value="${x}" ${e.effect===x?'selected':''}>${x}</option>`).join('')}</select></label></div>`;
  if(e.type==='emoji')return `<div class="learn-props"><label>Emoji/ícone<input id="propEmoji" value="${esc(e.emoji||'✨')}"></label><label>Descrição acessível<input id="propEmojiLabel" value="${esc(e.label||'')}"></label><label>Tamanho<input id="propEmojiSize" type="range" min="24" max="220" value="${Number(e.size)||72}"></label><label>Animação<select id="propEmojiAnimation"><option value="none" ${e.animation==='none'?'selected':''}>Sem animação</option><option value="pulse" ${e.animation==='pulse'?'selected':''}>Pulsar</option><option value="float" ${e.animation==='float'?'selected':''}>Flutuar</option><option value="bounce" ${e.animation==='bounce'?'selected':''}>Pular</option></select></label></div>`;
  return '';
@@ -380,8 +426,10 @@ function newElement(type){
  if(type==='path')return{id:uid('el'),type,title:'Minha trilha',stepsText:'Descobrir\nExplorar\nPraticar\nConcluir'};
  if(type==='meeting')return{id:uid('el'),type,title:'Encontro ao vivo',provider:'Google Meet',url:'',note:'Abra a reunião e mantenha a Central da Live disponível para perguntas e marcações.'};
  if(type==='escape')return{id:uid('el'),type,prompt:'Resolva a pista para abrir a próxima etapa.',answer:'resposta',hint:'Observe os detalhes do cenário.',success:'Você conseguiu!',targetSlideId:'',effect:'confetti'};
- if(type==='bingo')return{id:uid('el'),type,title:'Bingo da aula',itemsText:'Conceito 1\nConceito 2\nConceito 3\nConceito 4\nConceito 5\nConceito 6\nConceito 7\nConceito 8\nConceito 9',grid:3};
- if(type==='raffle')return{id:uid('el'),type,title:'Sorteio',itemsText:'Opção 1\nOpção 2\nOpção 3\nOpção 4'};
+ if(type==='bingo'){const e={id:uid('el'),type,title:'Bingo da aula',bingoMode:'numbers',numberFrom:1,numberTo:75,itemsText:'',grid:5,cardCount:6,freeCenter:true,bingoTheme:'classic',cards:[]};generateBingoCards(e,e.cardCount);return e}
+ if(type==='raffle')return{id:uid('el'),type,title:'Roleta da aula',itemsText:'Opção 1 | https://\nOpção 2 | https://\nOpção 3 | https://\nOpção 4 | https://',wheelTheme:'pastel',centerLabel:'GIRAR',spinSeconds:4,openLinkAfter:true};
+ if(type==='fortune')return{id:uid('el'),type,title:'Biscoito da Sorte',messagesText:'Você encontrou uma pista importante. | https://\nReleia o conceito-chave e avance. | https://\nCompartilhe uma ideia com seu grupo. | https://',cookieTheme:'golden',revealMode:'random',celebrate:true,revealIndex:0};
+ if(type==='phone')return{id:uid('el'),type,template:'professional',name:'Nome do estudante',handle:'perfil',headline:'Título profissional',bio:'Resumo profissional, competências e objetivos.',postText:'Escreva uma publicação ou apresentação pedagógica.',imageUrl:'',assetId:'',appTitle:'Feed de aprendizagem',actionLabel:'Ver mais',actionUrl:''};
  if(type==='effect')return{id:uid('el'),type,label:'Parabéns!',effect:'confetti'};
  if(type==='emoji')return{id:uid('el'),type,emoji:'✨',size:72,label:'',animation:'none'};
 }
